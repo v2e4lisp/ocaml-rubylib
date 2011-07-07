@@ -1,0 +1,5 @@
+name = "lang_ruby"
+version = "0.1"
+description = "Ruby code parser and pretty printer"
+archive(byte) = "lang_ruby.cma"
+archive(native) = "lang_ruby.cmxa"
