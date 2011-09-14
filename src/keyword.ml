@@ -9,9 +9,9 @@ type t =
   | K_until_mod | K_rescue_mod | K_alias | K_defined | K_lbegin | K_lend | K__line__
   | K__file__
 
-type trait = t * t * lex_state
+type lex_info = t * t * lex_state
 
-let trait_exn = function
+let lex_info_exn = function
   | "end"      -> K_end,      K_end,         Expr_end
   | "else"     -> K_else,     K_else,        Expr_beg
   | "case"     -> K_case,     K_case,        Expr_beg
@@ -54,8 +54,8 @@ let trait_exn = function
   | "alias"    -> K_alias,    K_alias,       Expr_fname
   | _          -> raise Not_found
 
-let trait id =
-  try Some (trait_exn id)
+let lex_info id =
+  try Some (lex_info_exn id)
   with _ -> None
 
 let mk_token ?(pos=Lexing.dummy_pos) = function

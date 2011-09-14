@@ -1,15 +1,24 @@
-PACKAGE = Lang_ruby
 LIBRARY = lang_ruby
+
+BYTE_ENABLED = true
 USE_OCAMLFIND = true
 
-FILES[] = logging rchar rid keyword ruby_lexing lexer_state lexer ast parser_helper parser parse pretty
-PACK = $(OCamlPackage $(uncapitalize $(PACKAGE)), $(FILES))
+FILES[] = logging rchar rid keyword ruby_lexing lexer_state ast lexer parser_helper parser parse pretty
+PACK = $(OCamlPackage $(LIBRARY), $(FILES))
 LIB = $(OCamlLibrary $(LIBRARY), $(rootname $(PACK)))
-OCAMLFLAGS += -annot -for-pack $(PACKAGE)
+OCAMLFLAGS += -annot -for-pack $(capitalize $(LIBRARY))
 
 .PHONY: install uninstall clean
 
 .DEFAULT: $(LIB)
+
+parser.mli: ast.cmo parser_helper.cmo
+	$(OCAMLC) -i parser.ml > $@
+
+parser.ml: parser.mly
+	$(OCAMLYACC) -bgen_parser $(OCAMLYACCFLAGS) $<
+	mv gen_parser.ml $@
+	rm gen_parser.mli
 
 install: uninstall $(LIB)
 	$(OCAMLFIND) install $(LIBRARY) $(LIB) $(PACK) META

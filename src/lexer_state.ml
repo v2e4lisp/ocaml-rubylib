@@ -74,6 +74,7 @@ module Env = struct
   let add t id kind =
     Scope.add t.current id
 
+
   let find t id =
     if Scope.mem t.current id
     then Some `Lvar
@@ -215,22 +216,23 @@ let merge_str_func f1 f2 =
     str_func_indent = f1.str_func_indent || f2.str_func_indent }
 
 let create () = {
-  cmd_start = false;
-  cmdarg_stack = Stack_state.create ();
-  cond_stack = Stack_state.create ();
-  lex_state = Expr_beg;
-  cmd_state = false;
-  last_state = Expr_beg;
-  lex_strterm = None;
-  lex_heredoc = None;
-  str_buf = Buffer.create 32;
-  str_nest = 0;
-  str_end = false;
-  space_seen = false;
-  ruby__end__seen = false;
-  env = Env.create ();
-  in_def = 0;
-  in_single = 0;
+  cmd_start         = false;
+  cmdarg_stack      = Stack_state.create ();
+  cond_stack        = Stack_state.create ();
+  lex_state         = Expr_beg;
+  cmd_state         = false;
+  last_state        = Expr_beg;
+  lex_strterm       = None;
+  lex_heredoc       = None;
+  str_buf           = Buffer.create 32;
+  str_nest          = 0;
+  str_end           = false;
+  space_seen        = false;
+  ruby__end__seen   = false;
+
+  env               = Env.create ();
+  in_def            = 0;
+  in_single         = 0;
 }
 
 let reset t =

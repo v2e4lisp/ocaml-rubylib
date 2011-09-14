@@ -53,7 +53,7 @@
                 else
                   result := IDENTIFIER (!real_id, pos));
 
-           match Keyword.trait !real_id with
+           match Keyword.lex_info !real_id with
            | Some (k1, k2, ks) when state.lex_state <> Expr_dot ->
                let k =
                  let st = state.lex_state in

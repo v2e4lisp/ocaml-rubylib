@@ -1,5 +1,7 @@
 type pos = Lexing.position
 
+let dummy_pos = Lexing.dummy_pos
+
 type identifier = string
 
 and literal =
@@ -9,206 +11,213 @@ and literal =
   | Lit_float of float
   | Lit_regexp of string
 
-and formal_param =
+and 'a formal_param =
   | Param_id of identifier
-  | Param_opt of identifier * expr
+  | Param_opt of identifier * 'a expr
   | Param_rest of identifier
   | Param_star
   | Param_block of identifier
 
-and begin_body = {
-  body : expr;
-  body_rescues : (expr list * expr) list;
-  body_else : expr;
-  body_ensure : expr;
+and 'a begin_body = {
+  body : 'a expr;
+  body_rescues : ('a expr list * 'a expr) list;
+  body_else : 'a expr;
+  body_ensure : 'a expr;
 }
 
-and case_body = {
-  case_expr : expr;
-  case_whens : (expr list * expr) list;
-  case_else : expr;
+and 'a case_body = {
+  case_expr : 'a expr;
+  case_whens : ('a expr list * 'a expr) list;
+  case_else : 'a expr;
 }
 
-and expr =
-  | Empty
-  | Alias of identifier * identifier * pos
-  | Undef of identifier list * pos
-  | Defined of expr * pos
-  | Nil of pos
-  | True of pos
-  | False of pos
-  | Self of pos
-  | Lit of literal * pos
-  | Str of string * pos
-  | Dstr of expr list * pos
-  | Evstr of expr * pos
-  | Xstr of string * pos
-  | Dxstr of expr list * pos
-  | Dregx of pos
-  | Dregx_once of pos
-  | Nth_ref of int * pos
-  | Back_ref of char * pos
-  | Array of expr list * pos
-  | Splat of expr * pos
-  | Svalue of expr list * pos
-  | Hash of expr list * pos
-  | Dot2 of expr * expr * pos
-  | Dot3 of expr * expr * pos
-  | Preexec of expr * pos
-  | Postexec of expr * pos
-  | Block of expr list * pos
-  | Begin of begin_body * pos
-  | Not of expr * pos
-  | And of expr * expr * pos
-  | Or of expr * expr * pos
-  | Match2 of expr * expr * pos
-  | Match3 of expr * expr * pos
-  | Match of expr * pos
-  | Flip2 of expr * expr * pos
-  | Flip3 of expr * expr * pos
-  | If of expr * expr * expr * pos
-  | While of expr * expr * bool * pos
-  | Until of expr * expr * bool * pos
-  | For of expr * expr list * expr * pos
-  | Case of case_body * pos
-  | Break of expr list * pos
-  | Next of expr list * pos
-  | Redo of pos
-  | Retry of pos
-  | Call of expr * identifier * expr list * pos
-  | Iter of expr * expr list * expr * pos
-  | Block_pass of expr * pos
-  | Return of expr list * pos
-  | Yield of expr list * pos
-  | Super of expr list * pos
-  | Zsuper of pos
-  | Const of identifier * pos
-  | Colon2 of expr * identifier * pos
-  | Colon3 of identifier * pos
-  | Lvar of identifier * pos
-  | Dvar of identifier * pos
-  | Dsym of expr list * pos
-  | Ivar of identifier * pos
-  | Cvar of identifier * pos
-  | Gvar of identifier * pos
-  | Cdecl of identifier * expr * pos
-  | Lasgn of identifier * expr * pos
-  | Dasgn of identifier * expr * pos
-  | Iasgn of identifier * expr * pos
-  | Cvasgn of identifier * expr * pos
-  | Cvdecl of identifier * expr * pos
-  | Gasgn of identifier * expr * pos
-  | Masgn of expr * expr * pos
-  | Op_asgn1 of expr * expr list * identifier * expr * pos
-  | Op_asgn2 of expr * identifier * identifier * expr * pos
-  | Op_asgn of expr * expr * identifier * identifier  * pos
-  | Op_asgn_or of expr * expr * pos
-  | Op_asgn_and of expr * expr * pos
-  | Attrasgn of expr * identifier * expr list * pos
-  | Class of expr * expr * expr * pos
-  | Sclass of expr * expr * pos
-  | Module of expr * expr * pos
-  | Defn of identifier * formal_param list * expr * pos
-  | Defs of expr * identifier * formal_param list * expr * pos
+and 'a expr =
+  | Empty of 'a
 
-(* need deriving-ocsigen
-with show
+  | Alias of identifier * identifier * 'a
+  | Undef of identifier list * 'a
+  | Defined of 'a expr * 'a
 
-module Show_pos = struct
-  let show t = "<pos>"
-  let format fmt t =
-    Format.pp_print_string fmt
-      (if t == Lexing.dummy_pos then
-         "<pos>"
-       else
-         Printf.sprintf "%s:%d:%d"
-           t.Lexing.pos_fname
-           t.Lexing.pos_lnum
-           (t.Lexing.pos_cnum - t.Lexing.pos_bol))
+  | Nil of 'a
+  | True of 'a
+  | False of 'a
+  | Self of 'a
+
+  | Lit of literal * 'a
+  | Str of string * 'a
+  | Dstr of 'a expr list * 'a
+  | Evstr of 'a expr * 'a
+  | Xstr of string * 'a
+  | Dxstr of 'a expr list * 'a
+  | Dregx of 'a
+  | Dregx_once of 'a
+  | Nth_ref of int * 'a
+  | Back_ref of char * 'a
+
+  | Array of 'a expr list * 'a
+  | Splat of 'a expr * 'a
+  | Svalue of 'a expr list * 'a
+  | Hash of 'a expr list * 'a
+  | Dot2 of 'a expr * 'a expr * 'a
+  | Dot3 of 'a expr * 'a expr * 'a
+
+  | Preexec of 'a expr * 'a
+  | Postexec of 'a expr * 'a
+  | Block of 'a expr list * 'a
+  | Begin of 'a begin_body * 'a
+
+  | Not of 'a expr * 'a
+  | And of 'a expr * 'a expr * 'a
+  | Or of 'a expr * 'a expr * 'a
+  | Match2 of 'a expr * 'a expr * 'a
+  | Match3 of 'a expr * 'a expr * 'a
+  | Match of 'a expr * 'a
+  | Flip2 of 'a expr * 'a expr * 'a
+  | Flip3 of 'a expr * 'a expr * 'a
+
+  | If of 'a expr * 'a expr * 'a expr * 'a
+  | While of 'a expr * 'a expr * bool * 'a
+  | Until of 'a expr * 'a expr * bool * 'a
+  | For of 'a expr * 'a expr list * 'a expr * 'a
+  | Case of 'a case_body * 'a
+  | Break of 'a expr list * 'a
+  | Next of 'a expr list * 'a
+  | Redo of 'a
+  | Retry of 'a
+
+  | Call of 'a expr * identifier * 'a expr list * 'a
+  | Iter of 'a expr * 'a expr list * 'a expr * 'a
+  | Block_pass of 'a expr * 'a
+  | Return of 'a expr list * 'a
+  | Yield of 'a expr list * 'a
+  | Super of 'a expr list * 'a
+  | Zsuper of 'a
+
+  | Const of identifier * 'a
+  | Colon2 of 'a expr * identifier * 'a
+  | Colon3 of identifier * 'a
+  | Lvar of identifier * 'a
+  | Dvar of identifier * 'a
+  | Dsym of 'a expr list * 'a
+  | Ivar of identifier * 'a
+  | Cvar of identifier * 'a
+  | Gvar of identifier * 'a
+
+  | Cdecl of identifier * 'a expr * 'a
+  | Lasgn of identifier * 'a expr * 'a
+  | Dasgn of identifier * 'a expr * 'a
+  | Iasgn of identifier * 'a expr * 'a
+  | Cvasgn of identifier * 'a expr * 'a
+  | Cvdecl of identifier * 'a expr * 'a
+  | Gasgn of identifier * 'a expr * 'a
+  | Masgn of 'a expr * 'a expr * 'a
+
+  | Op_asgn1 of 'a expr * 'a expr list * identifier * 'a expr * 'a
+  | Op_asgn2 of 'a expr * identifier * identifier * 'a expr * 'a
+  | Op_asgn of 'a expr * 'a expr * identifier * identifier  * 'a
+  | Op_asgn_or of 'a expr * 'a expr * 'a
+  | Op_asgn_and of 'a expr * 'a expr * 'a
+  | Attrasgn of 'a expr * identifier * 'a expr list * 'a
+
+  | Class of 'a expr * 'a expr * 'a expr * 'a
+  | Sclass of 'a expr * 'a expr * 'a
+  | Module of 'a expr * 'a expr * 'a
+  | Defn of identifier * 'a formal_param list * 'a expr * 'a
+  | Defs of 'a expr * identifier * 'a formal_param list * 'a expr * 'a
+
+let is_empty = function
+  | Empty _ -> true
+  | _       -> false
+
+let annot_of_expr = function
+  | Empty (a)
+  | Alias (_, _, a)
+  | Undef (_, a)
+  | Defined (_, a)
+  | Nil (a)
+  | True (a)
+  | False (a)
+  | Self (a)
+  | Lit (_, a)
+  | Str (_, a)
+  | Dstr (_, a)
+  | Evstr (_, a)
+  | Xstr (_, a)
+  | Dxstr (_, a)
+  | Dregx (a)
+  | Dregx_once (a)
+  | Nth_ref (_, a)
+  | Back_ref (_, a)
+  | Array (_, a)
+  | Splat (_, a)
+  | Svalue (_, a)
+  | Hash (_, a)
+  | Dot2 (_, _, a)
+  | Dot3 (_, _, a)
+  | Preexec (_, a)
+  | Postexec (_, a)
+  | Block (_, a)
+  | Begin (_, a)
+  | Not (_, a)
+  | And (_, _, a)
+  | Or (_, _, a)
+  | Match2 (_, _, a)
+  | Match3 (_, _, a)
+  | Match (_, a)
+  | Flip2 (_, _, a)
+  | Flip3 (_, _, a)
+  | If (_, _, _, a)
+  | While (_, _, _, a)
+  | Until (_, _, _, a)
+  | For (_, _, _, a)
+  | Case (_, a)
+  | Break (_, a)
+  | Next (_, a)
+  | Redo (a)
+  | Retry (a)
+  | Call (_, _, _, a)
+  | Iter (_, _, _, a)
+  | Block_pass (_, a)
+  | Return (_, a)
+  | Yield (_, a)
+  | Super (_, a)
+  | Zsuper (a)
+  | Const (_, a)
+  | Colon2 (_, _, a)
+  | Colon3 (_, a)
+  | Lvar (_, a)
+  | Dvar (_, a)
+  | Dsym (_, a)
+  | Ivar (_, a)
+  | Cvar (_, a)
+  | Gvar (_, a)
+  | Cdecl (_, _, a)
+  | Lasgn (_, _, a)
+  | Dasgn (_, _, a)
+  | Iasgn (_, _, a)
+  | Cvasgn (_, _, a)
+  | Cvdecl (_, _, a)
+  | Gasgn (_, _, a)
+  | Masgn (_, _, a)
+  | Op_asgn1 (_, _, _, _, a)
+  | Op_asgn2 (_, _, _, _, a)
+  | Op_asgn (_, _, _, _, a)
+  | Op_asgn_or (_, _, a)
+  | Op_asgn_and (_, _, a)
+  | Attrasgn (_, _, _, a)
+  | Class (_, _, _, a)
+  | Sclass (_, _, a)
+  | Module (_, _, a)
+  | Defn (_, _, _, a)
+  | Defs (_, _, _, _, a)
+    -> a
+
+module type Annot = sig
+  type t
+  val of_pos : Lexing.position -> t
 end
 
-let string_of_expr = Show.show<expr>
-*)
-
-let pos_of_expr = function
-  | Empty -> Lexing.dummy_pos
-  | Alias (_, _, pos)
-  | Undef (_, pos)
-  | Defined (_, pos)
-  | Nil (pos)
-  | True (pos)
-  | False (pos)
-  | Self (pos)
-  | Lit (_, pos)
-  | Str (_, pos)
-  | Dstr (_, pos)
-  | Evstr (_, pos)
-  | Xstr (_, pos)
-  | Dxstr (_, pos)
-  | Dregx (pos)
-  | Dregx_once (pos)
-  | Nth_ref (_, pos)
-  | Back_ref (_, pos)
-  | Array (_, pos)
-  | Splat (_, pos)
-  | Svalue (_, pos)
-  | Hash (_, pos)
-  | Dot2 (_, _, pos)
-  | Dot3 (_, _, pos)
-  | Preexec (_, pos)
-  | Postexec (_, pos)
-  | Block (_, pos)
-  | Begin (_, pos)
-  | Not (_, pos)
-  | And (_, _, pos)
-  | Or (_, _, pos)
-  | Match2 (_, _, pos)
-  | Match3 (_, _, pos)
-  | Match (_, pos)
-  | Flip2 (_, _, pos)
-  | Flip3 (_, _, pos)
-  | If (_, _, _, pos)
-  | While (_, _, _, pos)
-  | Until (_, _, _, pos)
-  | For (_, _, _, pos)
-  | Case (_, pos)
-  | Break (_, pos)
-  | Next (_, pos)
-  | Redo (pos)
-  | Retry (pos)
-  | Call (_, _, _, pos)
-  | Iter (_, _, _, pos)
-  | Block_pass (_, pos)
-  | Return (_, pos)
-  | Yield (_, pos)
-  | Super (_, pos)
-  | Zsuper (pos)
-  | Const (_, pos)
-  | Colon2 (_, _, pos)
-  | Colon3 (_, pos)
-  | Lvar (_, pos)
-  | Dvar (_, pos)
-  | Dsym (_, pos)
-  | Ivar (_, pos)
-  | Cvar (_, pos)
-  | Gvar (_, pos)
-  | Cdecl (_, _, pos)
-  | Lasgn (_, _, pos)
-  | Dasgn (_, _, pos)
-  | Iasgn (_, _, pos)
-  | Cvasgn (_, _, pos)
-  | Cvdecl (_, _, pos)
-  | Gasgn (_, _, pos)
-  | Masgn (_, _, pos)
-  | Op_asgn1 (_, _, _, _, pos)
-  | Op_asgn2 (_, _, _, _, pos)
-  | Op_asgn (_, _, _, _, pos)
-  | Op_asgn_or (_, _, pos)
-  | Op_asgn_and (_, _, pos)
-  | Attrasgn (_, _, _, pos)
-  | Class (_, _, _, pos)
-  | Sclass (_, _, pos)
-  | Module (_, _, pos)
-  | Defn (_, _, _, pos)
-  | Defs (_, _, _, _, pos)
-    -> pos
+module Pos : Annot = struct
+  type t = Lexing.position
+  let of_pos pos = pos
+end

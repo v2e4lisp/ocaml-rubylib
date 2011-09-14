@@ -1,643 +1,400 @@
 open Format
 open Ast
 
-let pp_print_expr fmt expr =
-  let rec pp_fixme () = pp_string "TODO"
-  and pp_char c = pp_string (String.make 1 c)
-  and pp_string = pp_print_as fmt 0
-  and pp_int int = pp_string (string_of_int int)
-  and pp_float float = pp_string (string_of_float float)
-  and pp_space () =
-    pp_char ' ';
-    pp_cut ()
-  and pp_cut = pp_print_cut fmt
-  and pp_newline = pp_force_newline fmt
-  and pp_open ?(n=2) () = pp_open_box fmt n
-  and pp_close = pp_close_box fmt
-  and pp_string_lit s =
-    (* TODO *)
-    pp_char '"';
-    pp_string (String.escaped s);
-    pp_char '"'
-  and pp_symbol s =
-    pp_char ':';
-    pp_string s
-  and pp_paren f =
-    pp_char '(';
-    pp_open ~n:1 ();
-    f ();
-    pp_close ();
-    pp_char ')'
-  and pp_binop lhs op rhs =
-    pp_paren
-      (fun () ->
-         pp_expr lhs;
-         pp_char ' ';
-         pp_string op;
-         pp_open ();
-         pp_space ();
-         pp_expr rhs;
-         pp_close ())
-  and pp_bare_array = function
-    | [] -> ()
-    | [e] -> pp_expr e;
-    | e :: es ->
-        pp_expr e;
-        pp_char ',';
-        pp_space ();
-        pp_bare_array es
-  and pp_bare_hash = function
-    | [] -> ()
-    | k :: v :: es ->
-        pp_expr k;
-        pp_string " =>";
-        pp_space ();
-        pp_expr v;
-        if es <> [] then begin
-          pp_char ',';
-          pp_space ()
-        end;
-        pp_bare_hash es
-    | _ ->
-        pp_fixme ()
-  and pp_array es =
-    pp_char '[';
-    pp_open ();
-    pp_cut ();
-    pp_bare_array es;
-    pp_close ();
-    pp_cut ();
-    pp_char ']'
-  and pp_args args =
-    pp_paren
-      (fun () ->
-         pp_bare_array args)
-  and pp_bare_args = function
-    | [] -> ()
-    | args ->        
-        pp_open ();
-        pp_bare_array args;
-        pp_close ()
-  and pp_param = function
-    | Param_id id ->
-        pp_string id
-    | Param_opt (_, asgn) ->
-        pp_expr asgn
-    | Param_rest id ->
-        pp_char '*';
-        pp_string id
-    | Param_star ->
-        pp_char '*'
-    | Param_block id ->
-        pp_char '&';
-        pp_string id
-  and pp_bare_params = function
-    | [] -> ()
-    | [p] -> pp_param p
-    | p :: ps ->
-        pp_param p;
-        pp_char ',';
-        pp_space ();
-        pp_bare_params ps
-  and pp_params params =
-    pp_char '(';
-    pp_open ();
-    pp_bare_params params;
-    pp_close ();
-    pp_char ')'
-  and pp_stmt stmt = pp_expr ~stmt:true stmt
-  and pp_stmts = function
-    | [] -> ()
-    | [s] -> pp_expr s;
-    | s :: ss ->
-        pp_stmt s;
-        pp_newline ();
-        pp_stmts ss
-  and pp_expr ?(stmt=false) = function
-    | Empty ->
-        if not stmt then
-          pp_string "()"
+let mk_sep sep =
+  let first = ref true in
+    fun fmt ->
+      if !first then
+        first := false
+      else
+        fprintf fmt sep
 
-    | Alias (new_id, old_id, _) ->
-        pp_string "alias";
-        pp_open ();
-        pp_space ();
-        pp_string new_id;
-        pp_space ();
-        pp_string old_id;
-        pp_close ()
+let pp_char = pp_print_char
+let pp_string = pp_print_string
+let pp_int = pp_print_int
+let pp_float = pp_print_float
 
-    | Undef (ids, _) ->
-        pp_string "undef";
-        pp_open ();
-        List.iter
-          (fun id ->
-             pp_space ();
-             pp_string id)
-          ids;
-        pp_close ()
+let pp_fixme fmt = pp_string fmt "fixme"
 
-    | Defined (e, _) ->
-        pp_string "defined";
-        pp_open ();
-        pp_char ' ';
-        pp_expr e;
-        pp_close ()
+let pp_empty fmt _ = ()
 
-    | Nil _ -> pp_string "nil"
-    | True _ -> pp_string "true"
-    | False _ -> pp_string "false"
-    | Self _ -> pp_string "self"
+let pp_paren pp fmt = fprintf fmt "(%a)" pp
 
-    | Lit (Lit_string string, _) ->
-        pp_string_lit string
-    | Lit (Lit_symbol symbol, _) ->
-        pp_symbol symbol
-    | Lit (Lit_int int, _) ->
-        pp_int int
-    | Lit (Lit_float float, _) ->
-        pp_float float
-    | Lit (Lit_regexp regexp, _) ->
-        pp_char '/';
-        pp_string regexp;
-        pp_char '/'
+let pp_opt pp fmt = function
+  | None -> ()
+  | Some x -> pp fmt x
 
-    | Str (s, _) ->
-        pp_string_lit s
+let rec pp_list ?(sep=", ") pp fmt = function
+  | [] -> ()
+  | [x] -> pp fmt x
+  | x :: xs ->
+      fprintf fmt "%a%s%a"
+        pp x sep (pp_list pp) xs
 
-    | Dstr (es, _) ->
-        pp_fixme ()
+let rec pp_block pp fmt = function
+  | [] -> ()
+  | [x] -> pp fmt x
+  | x :: xs ->
+      fprintf fmt "%a@\n%a"
+        pp x (pp_block pp) xs
 
-    | Evstr (e, _) ->
-        pp_string "#{";
-        pp_expr e;
-        pp_char '}'
+let rec pp_stmt fmt stmt = pp_expr' true fmt stmt
+and pp_suite fmt = pp_block pp_stmt fmt
 
-    | Xstr (s, _) ->
-        pp_fixme ()
+and pp_expr fmt = pp_expr' false fmt
+and pp_expr' stmt fmt = function
+  | Empty (_) -> if not stmt then pp_string fmt "()"
 
-    | Dxstr (es, _) ->
-        pp_fixme ()
+  | Alias (new_id, old_id, _) ->
+      fprintf fmt "alias %s %s" new_id old_id
 
-    | Dregx _ ->
-        pp_fixme ()
+  | Undef (ids, _) ->
+      fprintf fmt "undef %a"
+        (pp_list ~sep:" " pp_string) ids
 
-    | Dregx_once _ ->
-        pp_fixme ()
+  | Defined (e, _) ->
+      fprintf fmt "defined %a" pp_expr e
 
-    | Nth_ref (n, _) ->
-        pp_char '$';
-        pp_int n
+  | Nil _ -> pp_string fmt "nil"
+  | True _ -> pp_string fmt "true"
+  | False _ -> pp_string fmt "false"
+  | Self _ -> pp_string fmt "self"
 
-    | Back_ref (c, _) ->
-        pp_char '$';
-        pp_char c
+  | Lit (Lit_string s, _) ->
+      fprintf fmt "\"%s\"" (String.escaped s)
+  | Lit (Lit_symbol symbol, _) ->
+      fprintf fmt ":%s" symbol
+  | Lit (Lit_int int, _) ->
+      pp_int fmt int
+  | Lit (Lit_float float, _) ->
+      pp_float fmt float
+  | Lit (Lit_regexp regexp, _) ->
+      fprintf fmt "/%s/" regexp
 
-    | Array (es, _) ->
-        pp_array es
+  | Str (s, _) ->
+      fprintf fmt "\"%s\"" (String.escaped s)
 
-    | Splat (e, _) ->
-        pp_char '*';
-        pp_expr e
+  | Dstr (es, _) ->
+      pp_fixme fmt
 
-    | Svalue (es, _) ->
-        pp_bare_array es
+  | Evstr (e, _) ->
+      fprintf fmt "#{%a}" pp_expr e
 
-    | Hash (hash, _) ->
-        pp_char '{';
-        pp_open ();
-        pp_space ();
-        pp_bare_hash hash;
-        pp_space ();
-        pp_close ();
-        pp_char '}'
+  | Xstr (s, _) ->
+      pp_fixme fmt
 
-    | Dot2 (e1, e2, _) ->
-        pp_binop e1 ".." e2
+  | Dxstr (es, _) ->
+      pp_fixme fmt
 
-    | Dot3 (e1, e2, _) ->
-        pp_binop e1 "..." e2
+  | Dregx _ ->
+      pp_fixme fmt
 
-    | Preexec (e, _) ->
-        pp_string "BEGIN";
-        pp_string " {";
-        pp_open ();
-        pp_space ();
-        pp_stmt e;
-        pp_space ();
-        pp_close ();
-        pp_char '}'
-                     
-    | Postexec (e, _) ->
-        pp_string "END";
-        pp_string " {";
-        pp_open ();
-        pp_space ();
-        pp_stmt e;
-        pp_space ();
-        pp_close ();
-        pp_char '}'
+  | Dregx_once _ ->
+      pp_fixme fmt
 
-    | Block (stmts, _) ->
-        if stmt then
-          pp_stmts stmts
-        else
-          pp_paren
-            (fun () ->
-               pp_stmts stmts)
+  | Nth_ref (n, _) ->
+      fprintf fmt "$%d" n
 
-    | Begin ({ body = e;
-               body_rescues = res;
-               body_else = els;
-               body_ensure = ens }, _) ->
-        pp_string "begin";
-        pp_newline ();
-        pp_open ();
-        pp_stmt e;
-        pp_close ();
-        pp_newline ();
-        List.iter
-          (fun (types, e) ->
-             pp_string "rescue";
-             if types <> [] then begin
-               pp_char ' ';
-               pp_bare_array types
-             end;
-             pp_open ();
-             pp_newline ();
-             pp_stmt e;
-             pp_close ();
-             pp_newline ())
-          res;
-        if els <> Empty then begin
-          pp_string "else";
-          pp_newline ();
-          pp_open ();
-          pp_stmt e;
-          pp_close ();
-          pp_newline ()
-        end;
-        if els <> Empty then begin
-          pp_string "ensure";
-          pp_newline ();
-          pp_open ();
-          pp_stmt e;
-          pp_close ();
-          pp_newline ()
-        end;
-        pp_string "end";
+  | Back_ref (c, _) ->
+      fprintf fmt "$%c" c
 
-    | Not (e, _) ->
-        pp_string "(not";
-        pp_open ();
-        pp_space ();
-        pp_expr e;
-        pp_close ();
-        pp_char ')'
+  | Array (es, _) ->
+      fprintf fmt "[@[%a]]" pp_expr_list es
 
-    | And (e1, e2, _) ->
-        pp_binop e1 "&&" e2
+  | Splat (e, _) ->
+      fprintf fmt "*%a" pp_expr e
 
-    | Or (e1, e2, _) ->
-        pp_binop e1 "||" e2
+  | Svalue (es, _) ->
+      pp_expr_list fmt es
 
-    | Match2 (e1, e2, _) ->
-        pp_binop e1 "=~" e2
+  | Hash (hash, _) ->
+      fprintf fmt "{%a}" pp_hash hash
 
-    | Match3 (e1, e2, _) ->
-        pp_binop e2 "=~" e1
+  | Dot2 (e1, e2, _) ->
+      pp_binop fmt e1 ".." e2
 
-    | Match (e, _) ->
-        pp_expr e
+  | Dot3 (e1, e2, _) ->
+      pp_binop fmt e1 "..." e2
 
-    | Flip2 (e1, e2, _) ->
-        pp_binop e1 ".." e2
+  | Preexec (e, _) ->
+      fprintf fmt "@[<2>BEGIN {@\n%a@]@\n}" pp_stmt e
+        
+  | Postexec (e, _) ->
+      fprintf fmt "@[<2>END {@\n%a@]@\n}" pp_stmt e
 
-    | Flip3 (e1, e2, _) ->
-        pp_binop e1 "..." e2
+  | Block (stmts, _) ->
+      if stmt then
+        pp_suite fmt stmts
+      else
+        pp_paren pp_suite fmt stmts
 
-    | If (c, t, e, _) ->
-        pp_string "if ";
-        pp_expr c;
-        pp_open ();
-        pp_newline ();
+  | Begin ({ body = e;
+             body_rescues = res;
+             body_else = els;
+             body_ensure = ens }, _) ->
+      fprintf fmt "@[<2>begin@\n%a@]@\n" pp_stmt e;
+      List.iter
+        (fun (types, e) ->
+           fprintf fmt "@[<2>rescue";
+           if types <> [] then
+             fprintf fmt " %a" pp_expr_list types;
+           fprintf fmt "@\n%a@]@\n" pp_stmt e)
+        res;
+      if not (is_empty els) then
+        fprintf fmt "@[<2>else@\n%a@]@\n" pp_stmt els;
+      if not (is_empty ens) then
+        fprintf fmt "@[<2>ensure@\n%a@]@\n" pp_stmt ens;
+      pp_string fmt "end"
+
+  | Not (e, _) ->
+      fprintf fmt "(not %a)" pp_expr e
+
+  | And (e1, e2, _) ->
+      pp_binop fmt e1 "&&" e2
+
+  | Or (e1, e2, _) ->
+      pp_binop fmt e1 "||" e2
+
+  | Match2 (e1, e2, _) ->
+      pp_binop fmt e1 "=~" e2
+
+  | Match3 (e1, e2, _) ->
+      pp_binop fmt e2 "=~" e1
+
+  | Match (e, _) ->
+      pp_expr fmt e
+
+  | Flip2 (e1, e2, _) ->
+      pp_binop fmt e1 ".." e2
+
+  | Flip3 (e1, e2, _) ->
+      pp_binop fmt e1 "..." e2
+
+  | If (c, t, e, _) ->
+      fprintf fmt "@[<2>if %a@\n%a@]@\n"
+        pp_expr c
         pp_stmt t;
-        pp_close ();
-        pp_newline ();
-        if e <> Empty then begin
-          pp_string "else";
-          pp_open ();
-          pp_newline ();
-          pp_stmt e;
-          pp_close ();
-          pp_newline ()
-        end;
-        pp_string "end"
+      if not (is_empty e) then
+        fprintf fmt "@[<2>else@\n%a@]@\n" pp_stmt e;
+      pp_string fmt "end"
 
-    | While (c, e, pre, _) ->
-        if pre then begin
-          pp_expr e;
-          pp_space ();
-          pp_string "while";
-          pp_open ();
-          pp_space ();
-          pp_expr c;
-          pp_close ()
-        end else begin
-          pp_string "while";
-          pp_open ();
-          pp_space ();
-          pp_expr c;
-          pp_newline ();
-          pp_stmt e;
-          pp_close ();
-          pp_space ();
-          pp_string "end"
-        end
+  | While (c, e, pre, _) ->
+      if pre then
+        fprintf fmt "%a while %a"
+          pp_expr c
+          pp_expr e
+      else
+        fprintf fmt "@[<2>while %a@\n%a@]@\nend"
+          pp_expr c
+          pp_stmt e
 
-    | Until (c, e, pre, _) ->
-        if pre then begin
-          pp_expr e;
-          pp_space ();
-          pp_string "until";
-          pp_open ();
-          pp_space ();
-          pp_expr c;
-          pp_close ()
-        end else begin
-          pp_string "until";
-          pp_open ();
-          pp_space ();
-          pp_expr c;
-          pp_newline ();
-          pp_stmt e;
-          pp_close ();
-          pp_space ();
-          pp_string "end"
-        end
+  | Until (c, e, pre, _) ->
+      if pre then
+        fprintf fmt "%a until %a"
+          pp_expr c
+          pp_expr e
+      else
+        fprintf fmt "@[<2>until %a@\n%a@]@\nend"
+          pp_expr c
+          pp_stmt e
 
-    | For (gen, vars, e, _) ->
-        pp_fixme ()
+  | For (gen, vars, e, _) ->
+      pp_fixme fmt
 
-    | Case ({ case_expr = e;
-              case_whens = whens;
-              case_else = els }, _) ->
-        pp_string "case";
-        pp_char ' ';
-        pp_expr e;
-        pp_newline ();
-        List.iter
-          (fun (guards, e) ->
-             pp_string "when";
-             pp_char ' ';
-             pp_bare_array guards;
-             pp_open ();
-             pp_newline ();
-             pp_stmt e;
-             pp_close ();
-             pp_newline ())
-          whens;
-        if els <> Empty then begin
-          pp_string "else";
-          pp_open ();
-          pp_newline ();
-          pp_stmt els;
-          pp_close ();
-          pp_newline ()
-        end;
-        pp_string "end"
+  | Case ({ case_expr = e;
+            case_whens = whens;
+            case_else = els }, _) ->
+      fprintf fmt "@[<2>case %a@]@\n" pp_expr e;
+      List.iter
+        (fun (guards, e) ->
+           fprintf fmt "@[<2>when %a@\n%a@]@\n"
+             pp_expr_list guards
+             pp_stmt e)
+        whens;
+      if not (is_empty els) then
+        fprintf fmt "@[<2>else@\n%a@]@\n" pp_stmt els;
+      pp_string fmt "end"
 
-    | Break (args, _) ->
-        pp_string "break ";
-        pp_bare_args args
+  | Break (args, _) ->
+      fprintf fmt "break %a" pp_expr_list args
 
-    | Next (args, _) ->
-        pp_string "next ";
-        pp_bare_args args
+  | Next (args, _) ->
+      fprintf fmt "next %a" pp_expr_list args
 
-    | Redo _ -> pp_string "redo"
-    | Retry _ -> pp_string "retry"
+  | Redo _ -> pp_string fmt "redo"
+  | Retry _ -> pp_string fmt "retry"
 
-    | Call (recv, id, args, _) ->
-        (match id with
-         | "|" | "^" | "&" | "<=>" | "=="
-         | "===" | "=~" | ">" | ">=" | "<"
-         | "<=" | "<<" | ">>" | "+" | "-"
-         | "*" | "/" | "%" | "**" when List.length args = 1 ->
-             pp_binop recv id (List.hd args)
-         | "~" | "+@" | "-@" when args = [] ->
-             pp_char id.[0];
+  | Call (recv, id, args, _) ->
+      begin match id with
+       | "|" | "^" | "&" | "<=>" | "=="
+       | "===" | "=~" | ">" | ">=" | "<"
+       | "<=" | "<<" | ">>" | "+" | "-"
+       | "*" | "/" | "%" | "**" when List.length args = 1 ->
+           pp_binop fmt recv id (List.hd args)
+       | "~" | "+@" | "-@" when args = [] ->
+           pp_char fmt id.[0];
+           pp_expr fmt recv
+       | "[]" ->
+           fprintf fmt "%a[%a]"
              pp_expr recv
-         | "[]" ->
-             pp_expr recv;
-             pp_char '[';
-             pp_bare_args args;
-             pp_char ']';
-         | _ ->
-             if recv <> Empty then begin
-               pp_expr recv;
-               pp_char '.'
-             end;
-             pp_string id;
-             if args <> [] then
-               pp_args args)
+             pp_expr_list args
+       | _ ->
+           if not (is_empty recv) then
+             fprintf fmt "%a." pp_expr recv;
+           pp_string fmt id;
+           if args <> [] then
+             pp_paren_expr_list fmt args
+      end
 
-    | Iter (call, args, e, _) ->
-        pp_expr call;
-        pp_string " {";
-        pp_open ();
-        if args <> [] then begin
-          pp_char '|';
-          pp_bare_array args;
-          pp_char '|'
-        end;
-        pp_newline ();
-        pp_stmt e;
-        pp_close ();
-        pp_newline ();
-        pp_char '}'
+  | Iter (call, args, e, _) ->
+      fprintf fmt "@[<2>%a {" pp_expr call;
+      if args <> [] then
+        fprintf fmt "|%a|" pp_expr_list args;
+      fprintf fmt "@\n%a@]@\n}" pp_stmt e
 
-    | Block_pass (e, _) ->
-        pp_char '&';
+  | Block_pass (e, _) ->
+      pp_char fmt '&';
+      pp_expr fmt e
+
+  | Return (args, _) ->
+      fprintf fmt "return %a" pp_expr_list args
+
+  | Yield (args, _) ->
+      fprintf fmt "yield %a" pp_expr_list args
+
+  | Super (args, _) ->
+      fprintf fmt "yield%a" pp_paren_expr_list args
+
+  | Zsuper _ ->
+      pp_string fmt "super"
+
+  | Const (id, _) ->
+      pp_string fmt id
+
+  | Colon2 (path, id, _) ->
+      if not (is_empty path) then
+        fprintf fmt "%a::" pp_expr path;
+      pp_string fmt id
+
+  | Colon3 (id, _) ->
+      fprintf fmt "::%s" id
+
+  | Lvar (id, _)
+  | Dvar (id, _) ->
+      pp_string fmt id
+  | Dsym (es, _) ->
+      pp_fixme fmt
+  | Ivar (id, _)
+  | Cvar (id, _)
+  | Gvar (id, _) ->
+      pp_string fmt id
+
+  | Cdecl (id, e, _)
+  | Lasgn (id, e, _)
+  | Dasgn (id, e, _)
+  | Iasgn (id, e, _)
+  | Cvasgn (id, e, _)
+  | Cvdecl (id, e, _)
+  | Gasgn (id, e, _) ->
+      pp_string fmt id;
+      if not (is_empty e) then
+        (* TODO *)
+        fprintf fmt " = %a" pp_expr e
+
+  | Masgn (lhs, rhs, _) ->
+      pp_fixme fmt
+
+  | Op_asgn1 (recv, args, op, e, _) ->
+      fprintf fmt "%a[%a] %s= %a"
+        pp_expr recv
+        pp_expr_list args
+        op
         pp_expr e
 
-    | Return (args, _) ->
-        pp_string "return ";
-        pp_bare_args args
+  | Op_asgn2 (recv, id, op, e, _) ->
+      fprintf fmt "%a.%s %s= %a"
+        pp_expr recv
+        id op
+        pp_expr e
 
-    | Yield (args, _) ->
-        pp_string "yield";
-        pp_args args
+  | Op_asgn (recv, e, id, op, _) ->
+      fprintf fmt "%a::%s %s= %a"
+        pp_expr recv
+        id op
+        pp_expr e
 
-    | Super (args, _) ->
-        pp_string "super";
-        pp_args args
+  | Op_asgn_or (recv, e, _) ->
+      fprintf fmt "%a ||= %a"
+        pp_expr recv
+        pp_expr e
 
-    | Zsuper _ ->
-        pp_string "super"
+  | Op_asgn_and (recv, e, _) ->
+      fprintf fmt "%a &&= %a"
+        pp_expr recv
+        pp_expr e
 
-    | Const (id, _) ->
-        pp_string id
+  | Attrasgn (e, id, es, _) ->
+      pp_fixme fmt
 
-    | Colon2 (path, id, _) ->
-        if path <> Empty then begin
-          pp_expr path;
-          pp_string "::";
-        end;
-        pp_string id
+  | Class (path, super, e, _) ->
+      fprintf fmt "@[<2>class %a" pp_expr path;
+      if not (is_empty super) then
+        fprintf fmt " < %a" pp_expr super;
+      fprintf fmt "@\n%a@]@\nend" pp_stmt e
 
-    | Colon3 (id, _) ->
-        pp_string "::";
-        pp_string id
+  | Sclass (recv, e, _) ->
+      fprintf fmt "@[<2>class << %a@\n%a@]@\nend"
+        pp_expr recv
+        pp_stmt e
 
-    | Lvar (id, _)
-    | Dvar (id, _) ->
-        pp_string id
-    | Dsym (es, _) ->
-        pp_fixme ()
-    | Ivar (id, _)
-    | Cvar (id, _)
-    | Gvar (id, _) ->
-        pp_string id
+  | Module (path, e, _) ->
+      fprintf fmt "@[<2>module %a@\n%a@]@\nend"
+        pp_expr path
+        pp_stmt e
 
-    | Cdecl (id, e, _)
-    | Lasgn (id, e, _)
-    | Dasgn (id, e, _)
-    | Iasgn (id, e, _)
-    | Cvasgn (id, e, _)
-    | Cvdecl (id, e, _)
-    | Gasgn (id, e, _) ->
-        pp_string id;
-        if e <> Empty then begin
-          (* TODO *)
-          pp_string " =";
-          pp_open ();
-          pp_space ();
-          pp_expr e;
-          pp_close ()
-        end
+  | Defn (id, params, e, _) ->
+      fprintf fmt "@[<2>def %s(%a)@\n%a@]@\nend"
+        id
+        (pp_list pp_param) params
+        pp_stmt e
 
-    | Masgn (lhs, rhs, _) ->
-        pp_fixme ()
+  | Defs (recv, id, params, e, _) ->
+      fprintf fmt "@[<2>def %a.%s(%a)@\n%a@]@\nend"
+        pp_expr recv
+        id
+        (pp_list pp_param) params
+        pp_stmt e
 
-    | Op_asgn1 (recv, args, op, e, _) ->
-        pp_expr recv;
-        pp_char '[';
-        pp_open ();
-        pp_bare_args args;
-        pp_close ();
-        pp_string "] ";
-        pp_string op;
-        pp_char '=';
-        pp_open ();
-        pp_space ();
-        pp_expr e;
-        pp_close ()
+and pp_expr_list fmt = pp_list pp_expr fmt
+and pp_paren_expr_list fmt = pp_paren pp_expr_list fmt
 
-    | Op_asgn2 (recv, id, op, e, _) ->
-        pp_expr recv;
-        pp_char '.';
-        pp_string id;
-        pp_char ' ';
-        pp_string op;
-        pp_char '=';
-        pp_open ();
-        pp_space ();
-        pp_expr e;
-        pp_close ()
+and pp_hash fmt = function
+  | [] -> ()
+  | k :: v :: xs ->
+      fprintf fmt "%a => %a"
+        pp_expr k pp_expr v;
+      if xs <> [] then
+        pp_string fmt ", ";
+      pp_hash fmt xs
+  | _ ->
+      pp_fixme fmt
 
-    | Op_asgn (recv, e, id, op, _) ->
-        pp_expr recv;
-        pp_string "::";
-        pp_string id;
-        pp_char ' ';
-        pp_string op;
-        pp_char '=';
-        pp_open ();
-        pp_space ();
-        pp_expr e;
-        pp_close ()
+and pp_param fmt = function
+  | Param_id id ->
+      pp_string fmt id
+  | Param_opt (id, e) ->
+      fprintf fmt "%s = %a"
+        id pp_expr e
+  | Param_rest id ->
+      fprintf fmt "*%s" id
+  | Param_star ->
+      pp_char fmt '*'
+  | Param_block id ->
+      fprintf fmt "&%s" id
 
-    | Op_asgn_or (recv, e, _) ->
-        pp_expr recv;
-        pp_string " ||=";
-        pp_open ();
-        pp_space ();
-        pp_expr e;
-        pp_close ()
+and pp_binop fmt lhs op rhs =
+  fprintf fmt "(@[%a %s %a])"
+    pp_expr lhs op pp_expr rhs
 
-    | Op_asgn_and (recv, e, _) ->
-        pp_expr recv;
-        pp_string " &&=";
-        pp_open ();
-        pp_space ();
-        pp_expr e;
-        pp_close ()
-
-    | Attrasgn (e, id, es, _) ->
-        pp_fixme ()
-
-    | Class (path, super, e, _) ->
-        pp_string "class ";
-        pp_open ();
-        pp_expr path;
-        if super <> Empty then begin
-          pp_string " <";
-          pp_space ();
-          pp_expr super
-        end;
-        pp_newline ();
-        pp_stmt e;
-        pp_close ();
-        pp_newline ();
-        pp_string "end"
-
-    | Sclass (recv, e, _) ->
-        pp_string "class <<";
-        pp_open ();
-        pp_expr recv;
-        pp_newline ();
-        pp_stmt e;
-        pp_close ();
-        pp_newline ();
-        pp_string "end"
-
-    | Module (path, e, _) ->
-        pp_string "module ";
-        pp_expr path;
-        pp_open ();
-        pp_newline ();
-        pp_stmt e;
-        pp_close ();
-        pp_newline ();
-        pp_string "end"
-
-    | Defn (id, params, e, _) ->
-        pp_string "def ";
-        pp_string id;
-        pp_open ();
-        pp_params params;
-        pp_newline ();
-        pp_stmt e;
-        pp_close ();
-        pp_newline ();
-        pp_string "end"
-
-    | Defs (recv, id, params, e, _) ->
-        pp_string "def ";
-        pp_expr recv;
-        pp_char '.';
-        pp_string id;
-        pp_open ();
-        pp_params params;
-        pp_newline ();
-        pp_stmt e;
-        pp_close ();
-        pp_newline ();
-        pp_string "end"
-  in
-    pp_expr expr;
-    pp_print_flush fmt ()
-
-let print_expr expr =
-  pp_print_expr std_formatter expr
+let pp_print_expr fmt expr = pp_expr fmt expr
+let print_expr expr = pp_print_expr std_formatter expr
