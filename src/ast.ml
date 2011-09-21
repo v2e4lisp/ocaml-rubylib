@@ -32,7 +32,7 @@ and 'a case_body = {
 }
 
 and 'a expr =
-  | Empty of 'a
+  | Empty
 
   | Alias of identifier * identifier * 'a
   | Undef of identifier list * 'a
@@ -125,12 +125,8 @@ and 'a expr =
   | Defn of identifier * 'a formal_param list * 'a expr * 'a
   | Defs of 'a expr * identifier * 'a formal_param list * 'a expr * 'a
 
-let is_empty = function
-  | Empty _ -> true
-  | _       -> false
-
 let annot_of_expr = function
-  | Empty (a)
+  | Empty -> raise Not_found
   | Alias (_, _, a)
   | Undef (_, a)
   | Defined (_, a)

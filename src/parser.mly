@@ -5,6 +5,8 @@
     open Lexer_state
     open Ast
     open Parser_helper
+
+    let annot = A.of_pos
 %}
 
 %token <Lexing.position>
@@ -86,59 +88,59 @@
             stmt: K_ALIAS fitem
                     stmt_e1
                     fitem
-                    { Alias ($2, $4, A.of_pos $1) }
+                    { Alias ($2, $4, annot $1) }
                 | K_ALIAS GVAR GVAR
-                    { Alias (fst $2, fst $3, A.of_pos $1) }
+                    { Alias (fst $2, fst $3, annot $1) }
                 | K_ALIAS GVAR BACK_REF
-                    { Alias (fst $2, Printf.sprintf "$%c" (fst $3), A.of_pos $1) }
+                    { Alias (fst $2, Printf.sprintf "$%c" (fst $3), annot $1) }
                 | K_ALIAS GVAR NTH_REF
                     { yyerror "can't make alias for the number variables" }
                 | K_UNDEF undef_list
-                    { Undef ($2, A.of_pos $1) }
+                    { Undef ($2, annot $1) }
                 | stmt K_IF_MOD expr_value
-                    { new_if $3 $1 empty ~annot:(A.of_pos $2) }
+                    { new_if $3 $1 Empty ~annot:(annot $2) }
                 | stmt K_UNLESS_MOD expr_value
-                    { new_if $3 empty $1 ~annot:(A.of_pos $2) }
+                    { new_if $3 Empty $1 ~annot:(annot $2) }
                 | stmt K_WHILE_MOD expr_value
-                    { new_while $1 $3 true ~annot:(A.of_pos $2) }
+                    { new_while $1 $3 true ~annot:(annot $2) }
                 | stmt K_UNTIL_MOD expr_value
-                    { new_until $1 $3 true ~annot:(A.of_pos $2) }
+                    { new_until $1 $3 true ~annot:(annot $2) }
                 | stmt K_RESCUE_MOD stmt
                     { Begin ({ body = $1;
                                body_rescues = [[], $3];
-                               body_else = empty;
-                               body_ensure = empty },
-                             A.of_pos $2) }
+                               body_else = Empty;
+                               body_ensure = Empty },
+                             annot $2) }
                 | K_lBEGIN
                     stmt_e2
                     LCURLY compstmt RCURLY
-                    { Preexec ($4, A.of_pos $1) }
+                    { Preexec ($4, annot $1) }
                 | K_lEND LCURLY compstmt RCURLY
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "END in method; use at_exit";
-                      Postexec ($3, A.of_pos $1) }
+                      Postexec ($3, annot $1) }
                 | lhs EQL command_call
                     { node_assign $1 $3 }
                 | mlhs EQL command_call
-                    { new_masgn $1 $3 ~annot:(A.of_pos $2) }
+                    { new_masgn $1 $3 ~annot:(annot $2) }
                 | var_lhs OP_ASGN command_call
-                    { new_op_asgn $1 (fst $2) $3 ~annot:(A.of_pos (snd $2)) }
+                    { new_op_asgn $1 (fst $2) $3 ~annot:(annot (snd $2)) }
                 | primary_value LB aref_args RBRACK OP_ASGN command_call
-                    { Op_asgn1 ($1, $3, fst $5, $6, A.of_pos (snd $5)) }
+                    { Op_asgn1 ($1, $3, fst $5, $6, annot (snd $5)) }
                 | primary_value DOT IDENTIFIER OP_ASGN command_call
-                    { Op_asgn ($1, $5, fst $3, fst $4, A.of_pos (snd $4)) }
+                    { Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4)) }
                 | primary_value DOT CONSTANT OP_ASGN command_call
-                    { Op_asgn ($1, $5, fst $3, fst $4, A.of_pos (snd $4)) }
+                    { Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4)) }
                 | primary_value COLON2 IDENTIFIER OP_ASGN command_call
-                    { Op_asgn ($1, $5, fst $3, fst $4, A.of_pos (snd $4)) }
+                    { Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4)) }
                 | backref OP_ASGN command_call
                     { backref_assign_error $1 }
                 | lhs EQL mrhs
                     { node_assign $1 (Svalue ($3, dummy_annot)) }
                 | mlhs EQL arg_value
-                    { new_masgn $1 $3 ~annot:(A.of_pos $2) }
+                    { new_masgn $1 $3 ~annot:(annot $2) }
                 | mlhs EQL mrhs
-                    { Masgn (Array ($1, dummy_annot), Array ($3, dummy_annot), A.of_pos $2) }
+                    { Masgn (Array ($1, dummy_annot), Array ($3, dummy_annot), annot $2) }
                 | expr
                     { $1 }
          stmt_e1: { state.lex_state <- Expr_fname;
@@ -155,9 +157,9 @@
                 | expr K_OR expr
                     { logop `Or $1 $3 }
                 | K_NOT expr
-                    { Not ($2, A.of_pos $1) }
+                    { Not ($2, annot $1) }
                 | BANG command_call
-                    { Not ($2, A.of_pos $1) }
+                    { Not ($2, annot $1) }
                 | arg
                     { $1 }
 
@@ -169,18 +171,18 @@
                 | block_command
                     { $1 }
                 | K_RETURN call_args
-                    { Return (ret_args $2, A.of_pos $1) }
+                    { Return (ret_args $2, annot $1) }
                 | K_BREAK call_args
-                    { Break (ret_args $2, A.of_pos $1) }
+                    { Break (ret_args $2, annot $1) }
                 | K_NEXT call_args
-                    { Next (ret_args $2, A.of_pos $1) }
+                    { Next (ret_args $2, annot $1) }
 
    block_command: block_call
                     { $1 }
                 | block_call DOT operation2 command_args
-                    { new_call $1 (fst $3) $4 ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~annot:(annot (snd $3)) }
                 | block_call COLON2 operation2 command_args
-                    { new_call $1 (fst $3) $4 ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~annot:(annot (snd $3)) }
 
  cmd_brace_block: LBRACE_ARG
                     cmd_brace_block_e1
@@ -194,21 +196,21 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                       ()}
 
          command: operation command_args %prec LOWEST
-                    { new_fcall (fst $1) $2 ~annot:(A.of_pos (snd $1)) }
+                    { new_fcall (fst $1) $2 ~annot:(annot (snd $1)) }
                 | operation command_args cmd_brace_block
-                    { new_fcall (fst $1) $2 ~block:((Some $3)) ~annot:(A.of_pos (snd $1)) }
+                    { new_fcall (fst $1) $2 ~block:((Some $3)) ~annot:(annot (snd $1)) }
                 | primary_value DOT operation2 command_args %prec LOWEST
-                    { new_call $1 (fst $3) $4 ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~annot:(annot (snd $3)) }
                 | primary_value DOT operation2 command_args cmd_brace_block
-                    { new_call $1 (fst $3) $4 ~block:(Some $5) ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~block:(Some $5) ~annot:(annot (snd $3)) }
                 | primary_value COLON2 operation2 command_args %prec LOWEST
-                    { new_call $1 (fst $3) $4 ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~annot:(annot (snd $3)) }
                 | primary_value COLON2 operation2 command_args cmd_brace_block
-                    { new_call $1 (fst $3) $4 ~block:(Some $5) ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~block:(Some $5) ~annot:(annot (snd $3)) }
                 | K_SUPER command_args
-                    { Super ($2, A.of_pos $1) }
+                    { Super ($2, annot $1) }
                 | K_YIELD command_args
-                    { new_yield $2 ~annot:(A.of_pos $1) }
+                    { new_yield $2 ~annot:(annot $1) }
 
             mlhs: mlhs_basic
                     { $1 }
@@ -218,25 +220,25 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
       mlhs_entry: mlhs_basic
                     { $1 }
                 | LPAREN mlhs_entry RPAREN
-                    { [Array ($2, A.of_pos $1)] }
+                    { [Array ($2, annot $1)] }
 
       mlhs_basic: mlhs_head
                     { $1 }
                 | mlhs_head mlhs_item
                     { $1 @ [$2] }
                 | mlhs_head STAR mlhs_node
-                    { $1 @ [Splat ($3, A.of_pos $2)] }
+                    { $1 @ [Splat ($3, annot $2)] }
                 | mlhs_head STAR
-                    { $1 @ [Splat (empty, A.of_pos $2)] }
+                    { $1 @ [Splat (Empty, annot $2)] }
                 | STAR mlhs_node
-                    { [Splat ($2, A.of_pos $1)] }
+                    { [Splat ($2, annot $1)] }
                 | STAR
-                    { [Splat (empty, A.of_pos $1)] }
+                    { [Splat (Empty, annot $1)] }
 
        mlhs_item: mlhs_node
                     { $1 }
                 | LPAREN mlhs_entry RPAREN
-                    { Array ($2, A.of_pos $1) }
+                    { Array ($2, annot $1) }
 
        mlhs_head: mlhs_item COMMA
                     { [$1] }
@@ -244,44 +246,44 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { $1 @ [$2] }
 
        mlhs_node: variable
-                    { assignable (fst $1) empty ~annot:(A.of_pos (snd $1)) }
+                    { assignable (fst $1) Empty ~annot:(annot (snd $1)) }
                 | primary_value LB aref_args RBRACK
-                    { Attrasgn ($1, "[]=", $3, A.of_pos $2) }
+                    { Attrasgn ($1, "[]=", $3, annot $2) }
                 | primary_value DOT IDENTIFIER
-                    { Attrasgn ($1, (fst $3) ^ "=", [], A.of_pos (snd $3)) }
+                    { Attrasgn ($1, (fst $3) ^ "=", [], annot (snd $3)) }
                 | primary_value COLON2 IDENTIFIER
-                    { Attrasgn ($1, (fst $3) ^ "=", [], A.of_pos (snd $3)) }
+                    { Attrasgn ($1, (fst $3) ^ "=", [], annot (snd $3)) }
                 | primary_value DOT CONSTANT
-                    { Attrasgn ($1, (fst $3) ^ "=", [], A.of_pos (snd $3)) }
+                    { Attrasgn ($1, (fst $3) ^ "=", [], annot (snd $3)) }
                 | primary_value COLON2 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Colon2 ($1, fst $3, A.of_pos (snd $3)) }
+                      Colon2 ($1, fst $3, annot (snd $3)) }
                 | COLON3 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Colon3 (fst $2, A.of_pos (snd $2)) }
+                      Colon3 (fst $2, annot (snd $2)) }
                 | backref
                     { backref_assign_error $1 }
 
              lhs: variable
-                    { assignable (fst $1) empty ~annot:(A.of_pos (snd $1)) }
+                    { assignable (fst $1) Empty ~annot:(annot (snd $1)) }
                 | primary_value LB aref_args RBRACK
-                    { Attrasgn ($1, "[]=", $3, A.of_pos $2) }
+                    { Attrasgn ($1, "[]=", $3, annot $2) }
                 | primary_value DOT IDENTIFIER
-                    { Attrasgn ($1, (fst $3) ^ "=", [], A.of_pos (snd $3)) }
+                    { Attrasgn ($1, (fst $3) ^ "=", [], annot (snd $3)) }
                 | primary_value COLON2 IDENTIFIER
-                    { Attrasgn ($1, (fst $3) ^ "=", [], A.of_pos (snd $3)) }
+                    { Attrasgn ($1, (fst $3) ^ "=", [], annot (snd $3)) }
                 | primary_value DOT CONSTANT
-                    { Attrasgn ($1, (fst $3) ^ "=", [], A.of_pos (snd $3)) }
+                    { Attrasgn ($1, (fst $3) ^ "=", [], annot (snd $3)) }
                 | primary_value COLON2 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Colon2 ($1, fst $3, A.of_pos (snd $3)) }
+                      Colon2 ($1, fst $3, annot (snd $3)) }
                 | COLON3 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Colon3 (fst $2, A.of_pos (snd $2)) }
+                      Colon3 (fst $2, annot (snd $2)) }
                 | backref
                     { backref_assign_error $1 }
 
@@ -291,11 +293,11 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { $1 }
 
            cpath: COLON3 cname
-                    { Colon3 (fst $2, A.of_pos (snd $2)) }
+                    { Colon3 (fst $2, annot (snd $2)) }
                 | cname
-                    { Colon2 (empty, fst $1, A.of_pos (snd $1)) }
+                    { Colon2 (Empty, fst $1, annot (snd $1)) }
                 | primary_value COLON2 cname
-                    { Colon2 ($1, fst $3, A.of_pos (snd $3)) }
+                    { Colon2 ($1, fst $3, annot (snd $3)) }
 
            fname: IDENTIFIER
                     { $1 }
@@ -397,19 +399,19 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { node_assign $1
                         (Begin ({ body = $3;
                                   body_rescues = [[], $5];
-                                  body_else = empty;
-                                  body_ensure = empty },
-                                A.of_pos $4)) }
+                                  body_else = Empty;
+                                  body_ensure = Empty },
+                                annot $4)) }
                 | var_lhs OP_ASGN arg
-                    { new_op_asgn $1 (fst $2) $3 ~annot:(A.of_pos (snd $2)) }
+                    { new_op_asgn $1 (fst $2) $3 ~annot:(annot (snd $2)) }
                 | primary_value LB aref_args RBRACK OP_ASGN arg
-                    { Op_asgn1 ($1, $3, fst $5, $6, A.of_pos (snd $5)) }
+                    { Op_asgn1 ($1, $3, fst $5, $6, annot (snd $5)) }
                 | primary_value DOT IDENTIFIER OP_ASGN arg
-                    { Op_asgn2 ($1, (fst $3) ^ "=", fst $4, $5, A.of_pos (snd $4)) }
+                    { Op_asgn2 ($1, (fst $3) ^ "=", fst $4, $5, annot (snd $4)) }
                 | primary_value DOT CONSTANT OP_ASGN arg
-                    { Op_asgn2 ($1, (fst $3) ^ "=", fst $4, $5, A.of_pos (snd $4)) }
+                    { Op_asgn2 ($1, (fst $3) ^ "=", fst $4, $5, annot (snd $4)) }
                 | primary_value COLON2 IDENTIFIER OP_ASGN arg
-                    { Op_asgn ($1, $5, fst $3, fst $4, A.of_pos (snd $4)) }
+                    { Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4)) }
                 | primary_value COLON2 CONSTANT OP_ASGN arg
                     { yyerror "constant re-assignment" }
                 | COLON3 CONSTANT OP_ASGN arg
@@ -426,7 +428,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                         result = s(:dot2, v1, v2)
                       end
 *)
-                      Dot2 ($1, $3, A.of_pos $2) }
+                      Dot2 ($1, $3, annot $2) }
                 | arg DOT3 arg
                     {
 (* TODO
@@ -437,49 +439,49 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                         result = s(:dot3, v1, v2)
                       end
 *)
-                      Dot3 ($1, $3, A.of_pos $2) }
+                      Dot3 ($1, $3, annot $2) }
                 | arg PLUS arg
-                    { new_call $1 "+" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "+" [$3] ~annot:(annot $2) }
                 | arg MINUS arg
-                    { new_call $1 "-" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "-" [$3] ~annot:(annot $2) }
                 | arg STAR2 arg
-                    { new_call $1 "*" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "*" [$3] ~annot:(annot $2) }
                 | arg DIVIDE arg
-                    { new_call $1 "/" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "/" [$3] ~annot:(annot $2) }
                 | arg PERCENT arg
-                    { new_call $1 "%" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "%" [$3] ~annot:(annot $2) }
                 | arg POW arg
-                    { new_call $1 "**" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "**" [$3] ~annot:(annot $2) }
                 | UMINUS_NUM INTEGER POW arg
-                    { new_call (new_call (Lit (Lit_int (fst $2), A.of_pos (snd $2))) "**" [$4] ~annot:(A.of_pos $3)) "-@" [] ~annot:(A.of_pos $1) }
+                    { new_call (new_call (Lit (Lit_int (fst $2), annot (snd $2))) "**" [$4] ~annot:(annot $3)) "-@" [] ~annot:(annot $1) }
                 | UMINUS_NUM FLOAT POW arg
-                    { new_call (new_call (Lit (Lit_float (fst $2), A.of_pos (snd $2))) "**" [$4] ~annot:(A.of_pos $3)) "-@" [] ~annot:(A.of_pos $1) }
+                    { new_call (new_call (Lit (Lit_float (fst $2), annot (snd $2))) "**" [$4] ~annot:(annot $3)) "-@" [] ~annot:(annot $1) }
                 | UPLUS arg
                     { match $2 with
                       | Lit _ -> $2
-                      | _ -> new_call $2 "+@" [] ~annot:(A.of_pos $1) }
+                      | _ -> new_call $2 "+@" [] ~annot:(annot $1) }
                 | UMINUS arg
-                    { new_call $2 "-@" [] ~annot:(A.of_pos $1) }
+                    { new_call $2 "-@" [] ~annot:(annot $1) }
                 | arg PIPE arg
-                    { new_call $1 "|" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "|" [$3] ~annot:(annot $2) }
                 | arg CARET arg
-                    { new_call $1 "^" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "^" [$3] ~annot:(annot $2) }
                 | arg AMPER2 arg
-                    { new_call $1 "&" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "&" [$3] ~annot:(annot $2) }
                 | arg CMP arg
-                    { new_call $1 "<=>" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "<=>" [$3] ~annot:(annot $2) }
                 | arg GT arg
-                    { new_call $1 ">" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 ">" [$3] ~annot:(annot $2) }
                 | arg GEQ arg
-                    { new_call $1 ">=" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 ">=" [$3] ~annot:(annot $2) }
                 | arg LT arg
-                    { new_call $1 "<" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "<" [$3] ~annot:(annot $2) }
                 | arg LEQ arg
-                    { new_call $1 "<=" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "<=" [$3] ~annot:(annot $2) }
                 | arg EQ arg
-                    { new_call $1 "==" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "==" [$3] ~annot:(annot $2) }
                 | arg EQQ arg
-                    { new_call $1 "===" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "===" [$3] ~annot:(annot $2) }
                 | arg NEQ arg
                     { Not (new_call $1 "==" [$3], dummy_annot) }
                 | arg MATCH arg
@@ -488,19 +490,19 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { (* TODO NMATCH *)
                       Not (get_match_node $1 $3, dummy_annot) }
                 | BANG arg
-                    { Not ($2, A.of_pos $1) }
+                    { Not ($2, annot $1) }
                 | TILDE arg
-                    { new_call $2 "~" [] ~annot:(A.of_pos $1) }
+                    { new_call $2 "~" [] ~annot:(annot $1) }
                 | arg LSHFT arg
-                    { new_call $1 "<<" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 "<<" [$3] ~annot:(annot $2) }
                 | arg RSHFT arg
-                    { new_call $1 ">>" [$3] ~annot:(A.of_pos $2) }
+                    { new_call $1 ">>" [$3] ~annot:(annot $2) }
                 | arg ANDOP arg
                     { logop `And $1 $3 }
                 | arg OROP arg
                     { logop `Or $1 $3 }
                 | K_DEFINED opt_nl arg
-                    { Defined ($3, A.of_pos $1) }
+                    { Defined ($3, annot $1) }
                 | arg EH arg COLON arg
                     { If ($1, $3, $5, annot_of_expr $1) }
                 | primary
@@ -521,7 +523,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | assocs trailer
                     { [Hash ($1, dummy_annot)] }
                 | STAR arg opt_nl
-                    { [Splat ($2, A.of_pos $1)] }
+                    { [Splat ($2, annot $1)] }
 
       paren_args: LPAREN2 none RPAREN
                     { [] }
@@ -555,7 +557,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | args COMMA assocs COMMA STAR arg opt_block_arg
                     { arg_blk_pass ($1 @ (arg_concat [Hash ($3, dummy_annot)] $6)) $7 }
                 | STAR arg_value opt_block_arg
-                    { arg_blk_pass [Splat ($2, A.of_pos $1)] $3 }
+                    { arg_blk_pass [Splat ($2, annot $1)] $3 }
                 | block_arg
                     { [$1] }
 
@@ -580,7 +582,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | arg_value COMMA args COMMA assocs COMMA STAR arg_value opt_block_arg
                     { arg_blk_pass (arg_concat (($1 :: $3) @ [Hash ($5, dummy_annot)]) $8) $9 }
                 | STAR arg_value opt_block_arg
-                    { arg_blk_pass [Splat ($2, A.of_pos $1)] $3 }
+                    { arg_blk_pass [Splat ($2, annot $1)] $3 }
                 | block_arg
                     { [$1] }
 
@@ -607,7 +609,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
     open_args_e1: { state.lex_state <- Expr_endarg }
 
        block_arg: AMPER arg_value
-                    { Block_pass ($2, A.of_pos $1) }
+                    { Block_pass ($2, annot $1) }
 
    opt_block_arg: COMMA block_arg
                     { $2 }
@@ -624,7 +626,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | args COMMA STAR arg_value
                     { $1 @ [$4] }
                 | STAR arg_value
-                    { [Splat ($2, A.of_pos $1)] }
+                    { [Splat ($2, annot $1)] }
 
          primary: literal
                     { $1 }
@@ -643,7 +645,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | backref
                     { $1 }
                 | FID
-                    { new_fcall (fst $1) [] ~annot:(A.of_pos (snd $1)) }
+                    { new_fcall (fst $1) [] ~annot:(annot (snd $1)) }
                 | K_BEGIN
                     bodystmt K_END
                     { $2 }
@@ -654,67 +656,67 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                       $2 }
                 | LPAREN compstmt RPAREN
                     { match $2 with
-                      | Empty (a) -> Nil a
+                      | Empty -> Nil dummy_annot
                       | _ -> $2 }
                 | primary_value COLON2 CONSTANT
-                    { Colon2 ($1, fst $3, A.of_pos (snd $3)) }
+                    { Colon2 ($1, fst $3, annot (snd $3)) }
                 | COLON3 CONSTANT
-                    { Colon3 (fst $2, A.of_pos (snd $2)) }
+                    { Colon3 (fst $2, annot (snd $2)) }
                 | primary_value LB aref_args RBRACK
-                    { new_aref $1 $3 ~annot:(A.of_pos $2) }
+                    { new_aref $1 $3 ~annot:(annot $2) }
                 | LBRACK aref_args RBRACK
-                    { Array ($2, A.of_pos $1) }
+                    { Array ($2, annot $1) }
                 | LBRACE assoc_list RCURLY
-                    { Hash ($2, A.of_pos $1) }
+                    { Hash ($2, annot $1) }
                 | K_RETURN
-                    { Return ([], A.of_pos $1) }
+                    { Return ([], annot $1) }
                 | K_YIELD LPAREN2 call_args RPAREN
-                    { new_yield $3 ~annot:(A.of_pos $1) }
+                    { new_yield $3 ~annot:(annot $1) }
                 | K_YIELD LPAREN2 RPAREN
-                    { new_yield [] ~annot:(A.of_pos $1) }
+                    { new_yield [] ~annot:(annot $1) }
                 | K_YIELD
-                    { new_yield [] ~annot:(A.of_pos $1) }
+                    { new_yield [] ~annot:(annot $1) }
                 | K_DEFINED opt_nl LPAREN2 expr RPAREN
-                    { Defined ($4, A.of_pos $1) }
+                    { Defined ($4, annot $1) }
                 | operation brace_block
-                    { new_fcall (fst $1) [] ~block:(Some $2) ~annot:(A.of_pos (snd $1)) }
+                    { new_fcall (fst $1) [] ~block:(Some $2) ~annot:(annot (snd $1)) }
                 | method_call
                     { $1 }
                 | method_call brace_block
                     { Iter ($1, fst $2, snd $2, annot_of_expr $1) }
                 | K_IF expr_value then_ compstmt if_tail K_END
-                    { new_if $2 $4 $5 ~annot:(A.of_pos $1) }
+                    { new_if $2 $4 $5 ~annot:(annot $1) }
                 | K_UNLESS expr_value then_ compstmt opt_else K_END
-                    { new_if $2 $5 $4 ~annot:(A.of_pos $1) }
+                    { new_if $2 $5 $4 ~annot:(annot $1) }
                 | K_WHILE
                     primary_e2
                     expr_value do_
                     primary_e3
                     compstmt K_END
-                    { new_while $6 $3 false ~annot:(A.of_pos $1) }
+                    { new_while $6 $3 false ~annot:(annot $1) }
                 | K_UNTIL
                     primary_e2
                     expr_value do_
                     primary_e3
                     compstmt K_END
-                    { new_until $6 $3 false ~annot:(A.of_pos $1) }
+                    { new_until $6 $3 false ~annot:(annot $1) }
                 | K_CASE expr_value opt_terms case_body opt_else K_END
-                    { new_case $2 $4 $5 ~annot:(A.of_pos $1) }
+                    { new_case $2 $4 $5 ~annot:(annot $1) }
                 | K_CASE opt_terms case_body opt_else K_END
-                    { new_case empty $3 $4 ~annot:(A.of_pos $1) }
+                    { new_case Empty $3 $4 ~annot:(annot $1) }
                 | K_CASE opt_terms K_ELSE compstmt K_END
-                    { new_case empty [] $4 ~annot:(A.of_pos $1) }
+                    { new_case Empty [] $4 ~annot:(annot $1) }
                 | K_FOR block_var K_IN
                     primary_e2
                     expr_value do_
                     primary_e3
                     compstmt K_END
-                    { For ($5, $2, $8, A.of_pos $1) }
+                    { For ($5, $2, $8, annot $1) }
                 | K_CLASS
                     cpath superclass
                     primary_e4
                     bodystmt K_END
-                    { let ret = new_class $2 $3 $5 ~annot:(A.of_pos $1) in
+                    { let ret = new_class $2 $3 $5 ~annot:(annot $1) in
                         Env.unextend state.env;
                         ret }
                 | K_CLASS LSHFT
@@ -723,7 +725,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     term
                     primary_e6
                     bodystmt K_END
-                    { let ret = new_sclass $3 $7 ~annot:(A.of_pos $1) in
+                    { let ret = new_sclass $3 $7 ~annot:(annot $1) in
                         state.in_def <- $4;
                         state.in_single <- $6;
                         Env.unextend state.env;
@@ -732,13 +734,13 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     cpath
                     primary_e7
                     bodystmt K_END
-                    { let ret = new_module $2 $4 ~annot:(A.of_pos $1) in
+                    { let ret = new_module $2 $4 ~annot:(annot $1) in
                         Env.unextend state.env;
                         ret }
                 | K_DEF fname
                     primary_e8
                     f_arglist bodystmt K_END
-                    { let ret = Defn (fst $2, $4, $5, A.of_pos $1) in
+                    { let ret = Defn (fst $2, $4, $5, annot $1) in
                         Env.unextend state.env;
                         state.in_def <- pred state.in_def;
                         ret }
@@ -747,18 +749,18 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     fname
                     primary_e10
                     f_arglist bodystmt K_END
-                    { let ret = Defs ($2, fst $5, $7, $8, A.of_pos $1) in
+                    { let ret = Defs ($2, fst $5, $7, $8, annot $1) in
                         Env.unextend state.env;
                         state.in_single <- pred state.in_single;
                         ret }
                 | K_BREAK
-                    { Break ([], A.of_pos $1) }
+                    { Break ([], annot $1) }
                 | K_NEXT
-                    { Next ([], A.of_pos $1) }
+                    { Next ([], annot $1) }
                 | K_REDO
-                    { Redo (A.of_pos $1) }
+                    { Redo (annot $1) }
                 | K_RETRY
-                    { Retry (A.of_pos $1) }
+                    { Retry (annot $1) }
       primary_e1: { state.lex_state <- Expr_endarg }
       primary_e2: { Stack_state.push state.cond_stack true }
       primary_e3: { Stack_state.pop state.cond_stack }
@@ -797,7 +799,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
          if_tail: opt_else
                     { $1 }
                 | K_ELSIF expr_value then_ compstmt if_tail
-                    { If ($2, $4, $5, A.of_pos $1) }
+                    { If ($2, $4, $5, annot $1) }
 
         opt_else: none
                     { $1 }
@@ -837,25 +839,25 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                       result = val[1]
                       result.insert 1, val[0]
 *)
-                      empty }
+                      Empty }
                 | block_call DOT operation2 opt_paren_args
-                    { new_call $1 (fst $3) $4 ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~annot:(annot (snd $3)) }
                 | block_call COLON2 operation2 opt_paren_args
-                    { new_call $1 (fst $3) $4 ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~annot:(annot (snd $3)) }
 
      method_call: operation
                     paren_args
-                    { new_fcall (fst $1) $2 ~annot:(A.of_pos (snd $1)) }
+                    { new_fcall (fst $1) $2 ~annot:(annot (snd $1)) }
                 | primary_value DOT operation2 opt_paren_args
-                    { new_call $1 (fst $3) $4 ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~annot:(annot (snd $3)) }
                 | primary_value COLON2 operation2 paren_args
-                    { new_call $1 (fst $3) $4 ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) $4 ~annot:(annot (snd $3)) }
                 | primary_value COLON2 operation3
-                    { new_call $1 (fst $3) [] ~annot:(A.of_pos (snd $3)) }
+                    { new_call $1 (fst $3) [] ~annot:(annot (snd $3)) }
                 | K_SUPER paren_args
-                    { Super ($2, A.of_pos $1) }
+                    { Super ($2, annot $1) }
                 | K_SUPER
-                    { Zsuper (A.of_pos $1) }
+                    { Zsuper (annot $1) }
 
      brace_block: LCURLY
                     brace_block_e1
@@ -880,9 +882,9 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
        when_args: args
                     { $1 }
                 | args COMMA STAR arg_value
-                    { $1 @ [Splat ($4, A.of_pos $3)] }
+                    { $1 @ [Splat ($4, annot $3)] }
                 | STAR arg_value
-                    { [Splat ($2, A.of_pos $1)] }
+                    { [Splat ($2, annot $1)] }
 
            cases: case_body
                     { $1 }
@@ -890,10 +892,10 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { [] }
 
       opt_rescue: K_RESCUE exc_list exc_var then_ compstmt opt_rescue
-                    { let body = match $3 with
-                        | Empty a ->
-                            append_to_block (node_assign $3 (Gvar ("$!", a))) $5
-                        | _ -> $5
+                    { let body =
+                        if $3 = Empty
+                        then append_to_block (node_assign $3 (Gvar ("$!", dummy_annot))) $5
+                        else $5
                       in ($2, body) :: $6 }
                 | none
                     { [] }
@@ -911,9 +913,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { $1 }
 
       opt_ensure: K_ENSURE compstmt
-                    { match $2 with
-                      | Empty _ -> $2
-                      | _ -> $2 }
+                    { $2 }
                 | none
                     { $1 }
 
@@ -926,8 +926,8 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                             Lit_float num
                         | _ ->
                             failwith "never reach here"
-                      in Lit (lit_val, A.of_pos (snd $1)) }
-                | symbol  { Lit (Lit_symbol (fst $1), A.of_pos (snd $1)) }
+                      in Lit (lit_val, annot (snd $1)) }
+                | symbol  { Lit (Lit_symbol (fst $1), annot (snd $1)) }
                 | dsym    { $1 }
 
          strings: string
@@ -947,12 +947,12 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { new_xstring $2 }
 
           regexp: REGEXP_BEG xstring_contents REGEXP_END
-                    { new_regexp $2 "TODO" ~annot:(A.of_pos $1) }
+                    { new_regexp $2 "TODO" ~annot:(annot $1) }
 
            words: WORDS_BEG SPACE STRING_END
-                    { Array ([], A.of_pos $1) }
+                    { Array ([], annot $1) }
                 | WORDS_BEG word_list STRING_END
-                    { Array ($2, A.of_pos $1) }
+                    { Array ($2, annot $1) }
 
        word_list: none
                     { [] }
@@ -968,14 +968,14 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { literal_concat $1 $2 }
 
           awords: QWORDS_BEG SPACE STRING_END
-                    { Array ([], A.of_pos $1) }
+                    { Array ([], annot $1) }
                 | QWORDS_BEG qword_list STRING_END
-                    { Array ($2, A.of_pos $1) }
+                    { Array ($2, annot $1) }
 
       qword_list: none
                     { [] }
                 | qword_list STRING_CONTENT SPACE
-                    { $1 @ [Str (fst $2, A.of_pos (snd $2))] }
+                    { $1 @ [Str (fst $2, annot (snd $2))] }
 
  string_contents: none
                     { Str ("", dummy_annot) }
@@ -983,17 +983,17 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { literal_concat $1 $2 }
 
 xstring_contents: none 
-                    { empty }
+                    { Empty }
                 | xstring_contents string_content
                     { literal_concat $1 $2 }
 
   string_content: STRING_CONTENT
-                    { Str (fst $1, A.of_pos (snd $1)) }
+                    { Str (fst $1, annot (snd $1)) }
                 | STRING_DVAR
                     string_content_e1
                     string_dvar
                     { state.lex_strterm <- $2;
-                      Evstr ($3, A.of_pos $1) }
+                      Evstr ($3, annot $1) }
                 | STRING_DBEG
                     string_content_e2
                     compstmt RCURLY
@@ -1013,9 +1013,9 @@ string_content_e2: { let ret = state.lex_strterm in
                        Stack_state.push state.cmdarg_stack false;
                        ret }
 
-     string_dvar: GVAR { Gvar (fst $1, A.of_pos (snd $1)) }
-                | IVAR { Ivar (fst $1, A.of_pos (snd $1)) }
-                | CVAR { Cvar (fst $1, A.of_pos (snd $1)) }
+     string_dvar: GVAR { Gvar (fst $1, annot (snd $1)) }
+                | IVAR { Ivar (fst $1, annot (snd $1)) }
+                | CVAR { Cvar (fst $1, annot (snd $1)) }
                 | backref { $1 }
 
           symbol: SYMBEG sym
@@ -1029,13 +1029,13 @@ string_content_e2: { let ret = state.lex_strterm in
 
             dsym: SYMBEG xstring_contents STRING_END
                     { state.lex_state <- Expr_end;
-                      if is_empty $2 then
-                        yyerror "empty symbol literal";
+                      if $2 = Empty then
+                        yyerror "Empty symbol literal";
                       match $2 with
                       | Dstr (list, a) -> Dsym (list, a)
                       | Str (str, a) -> Lit (Lit_string str, a)
-                      | Empty _ -> yyerror "empty symbol literal"
-                      | _ -> Dsym ([$2], A.of_pos $1) }
+                      | Empty -> yyerror "empty symbol literal"
+                      | _ -> Dsym ([$2], annot $1) }
 
          numeric: INTEGER
                     { `Int (fst $1), snd $1 }
@@ -1059,24 +1059,24 @@ string_content_e2: { let ret = state.lex_strterm in
                 | K__LINE__  { "__LINE__", $1 }
 
          var_ref: variable
-                    { gettable (fst $1) ~annot:(A.of_pos (snd $1)) }
+                    { gettable (fst $1) ~annot:(annot (snd $1)) }
 
          var_lhs: variable
-                    { assignable (fst $1) empty ~annot:(A.of_pos (snd $1)) }
+                    { assignable (fst $1) Empty ~annot:(annot (snd $1)) }
 
          backref: NTH_REF
-                    { Nth_ref (fst $1, A.of_pos (snd $1)) }
+                    { Nth_ref (fst $1, annot (snd $1)) }
                 | BACK_REF
-                    { Back_ref (fst $1, A.of_pos (snd $1)) }
+                    { Back_ref (fst $1, annot (snd $1)) }
 
       superclass: term
-                    { empty }
+                    { Empty }
                 | LT
                     superclass_e1
                     expr_value term
                     { $3 }
                 | error term
-                    { empty }
+                    { Empty }
    superclass_e1:   { state.lex_state <- Expr_beg }
 
        f_arglist: LPAREN2 f_args opt_nl RPAREN
@@ -1131,7 +1131,7 @@ string_content_e2: { let ret = state.lex_strterm in
                 | STAR  { $1 }
 
       f_rest_arg: restarg_mark IDENTIFIER
-                    { ignore (assignable (fst $2) empty);
+                    { ignore (assignable (fst $2) Empty);
                       [Param_rest (fst $2)] }
                 | restarg_mark
                     { Env.add state.env "*" `Lvar;
@@ -1209,8 +1209,8 @@ string_content_e2: { let ret = state.lex_strterm in
            terms: term       { () }
                 | terms SEMI { () }
 
-            none: { empty }
+            none: { Empty }
 
- none_block_pass: { empty }
+ none_block_pass: { Empty }
 
 %%end

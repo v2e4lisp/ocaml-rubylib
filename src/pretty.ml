@@ -140,9 +140,9 @@ and pp_expr' stmt fmt = function
              fprintf fmt " %a" pp_expr_list types;
            fprintf fmt "@\n%a@]@\n" pp_stmt e)
         res;
-      if not (is_empty els) then
+      if els <> Empty then
         fprintf fmt "@[<2>else@\n%a@]@\n" pp_stmt els;
-      if not (is_empty ens) then
+      if ens <> Empty then
         fprintf fmt "@[<2>ensure@\n%a@]@\n" pp_stmt ens;
       pp_string fmt "end"
 
@@ -174,7 +174,7 @@ and pp_expr' stmt fmt = function
       fprintf fmt "@[<2>if %a@\n%a@]@\n"
         pp_expr c
         pp_stmt t;
-      if not (is_empty e) then
+      if e <> Empty then
         fprintf fmt "@[<2>else@\n%a@]@\n" pp_stmt e;
       pp_string fmt "end"
 
@@ -211,7 +211,7 @@ and pp_expr' stmt fmt = function
              pp_expr_list guards
              pp_stmt e)
         whens;
-      if not (is_empty els) then
+      if els <> Empty then
         fprintf fmt "@[<2>else@\n%a@]@\n" pp_stmt els;
       pp_string fmt "end"
 
@@ -239,7 +239,7 @@ and pp_expr' stmt fmt = function
              pp_expr recv
              pp_expr_list args
        | _ ->
-           if not (is_empty recv) then
+           if recv <> Empty then
              fprintf fmt "%a." pp_expr recv;
            pp_string fmt id;
            if args <> [] then
@@ -272,7 +272,7 @@ and pp_expr' stmt fmt = function
       pp_string fmt id
 
   | Colon2 (path, id, _) ->
-      if not (is_empty path) then
+      if path <> Empty then
         fprintf fmt "%a::" pp_expr path;
       pp_string fmt id
 
@@ -297,7 +297,7 @@ and pp_expr' stmt fmt = function
   | Cvdecl (id, e, _)
   | Gasgn (id, e, _) ->
       pp_string fmt id;
-      if not (is_empty e) then
+      if e <> Empty then
         (* TODO *)
         fprintf fmt " = %a" pp_expr e
 
@@ -338,7 +338,7 @@ and pp_expr' stmt fmt = function
 
   | Class (path, super, e, _) ->
       fprintf fmt "@[<2>class %a" pp_expr path;
-      if not (is_empty super) then
+      if super <> Empty then
         fprintf fmt " < %a" pp_expr super;
       fprintf fmt "@\n%a@]@\nend" pp_stmt e
 

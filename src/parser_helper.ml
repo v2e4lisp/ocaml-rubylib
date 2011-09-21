@@ -4,7 +4,10 @@ module Make (A : Ast.Annot) = struct
   open Logging
 
   let dummy_annot = A.of_pos dummy_pos
-  let empty = Empty dummy_annot
+  let annot_of_expr expr =
+    if expr = Empty
+    then dummy_annot
+    else annot_of_expr expr
 
   let yyerror = error
 
@@ -40,8 +43,8 @@ module Make (A : Ast.Annot) = struct
 
   let block_append head tail =
     match head, tail with
-    | _, Empty _ -> head
-    | Empty _, _
+    | _, Empty -> head
+    | Empty, _
         (* Do not drop literals.
            | Lit _, _
            | Str _, _ -> tail
@@ -55,8 +58,8 @@ module Make (A : Ast.Annot) = struct
 
   let append_to_block head tail =
     match head, tail with
-    | Empty _, _ -> tail
-    | _, Empty _ -> head
+    | Empty, _ -> tail
+    | _, Empty -> head
     | Block (body, a), _ ->
         Block (body @ [tail], a)
     | _, _ ->
@@ -83,8 +86,8 @@ module Make (A : Ast.Annot) = struct
       | _ -> head
     in
       match head, tail with
-      | Empty _, _ -> tail
-      | _, Empty _ -> head
+      | Empty, _ -> tail
+      | _, Empty -> head
       | Str (s1, a), Str (s2, _) ->
           Str (s1 ^ s2, a)
       | Dstr (list, a), Str _ ->
@@ -103,7 +106,7 @@ module Make (A : Ast.Annot) = struct
     args @ [Splat (rest, annot_of_expr rest)]
 
   let arg_blk_pass args = function
-    | Empty _ -> args
+    | Empty -> args
     | blk -> args @ [blk]
 
   let formal_params norms opts rest block =
@@ -121,13 +124,13 @@ module Make (A : Ast.Annot) = struct
           Iter (call, fst blk, snd blk, annot)
 
   let new_fcall ?(block=None) ?(annot=dummy_annot) id args =
-    new_call empty id args ~block ~annot
+    new_call Empty id args ~block ~annot
 
   let new_vcall ?(annot=dummy_annot) id =
-    new_call empty id [] ~annot
+    new_call Empty id [] ~annot
 
   let new_evstr = function
-    | Empty a -> Evstr (empty, a)
+    | Empty -> Evstr (Empty, dummy_annot)
     | Str _ | Dstr _ | Evstr _ as expr -> expr
     | expr -> Evstr (expr, annot_of_expr expr)
 
@@ -198,11 +201,11 @@ module Make (A : Ast.Annot) = struct
     | Back_ref (c, _) ->
         error (Printf.sprintf "Can't set variable $%c" c)
     | _ ->
-        empty
+        Empty
 
   let node_assign lhs rhs =
     match lhs with
-    | Empty _ -> lhs
+    | Empty -> lhs
     | Gasgn (id, _, a) -> Gasgn (id, rhs, a)
     | Iasgn (id, _, a) -> Iasgn (id, rhs, a)
     | Lasgn (id, _, a) -> Lasgn (id, rhs, a)
@@ -240,7 +243,7 @@ module Make (A : Ast.Annot) = struct
         new_call ary "[]" args ~annot
 
   let new_body ?(annot=dummy_annot) body rescues els ensure =
-    if rescues <> [] || not (is_empty els) || not (is_empty ensure)
+    if rescues <> [] || els <> Empty || ensure <> Empty
     then Begin ({ body = body;
                   body_rescues = rescues;
                   body_else = els;
@@ -299,7 +302,7 @@ module Make (A : Ast.Annot) = struct
 
   let new_regexp ?(annot=dummy_annot) expr options =
     (* TODO *)
-    empty
+    Empty
 
   let new_sclass ?(annot=dummy_annot) recv body =
     Sclass (recv, body, annot)
@@ -310,7 +313,7 @@ module Make (A : Ast.Annot) = struct
       | Begin ({ body = body;
                  body_rescues = [];
                  body_else = _;
-                 body_ensure = empty },
+                 body_ensure = Empty },
                _) -> body, pre
       | _ -> block, false
     in
@@ -333,8 +336,8 @@ module Make (A : Ast.Annot) = struct
         Xstr (str, a)
     | Dstr (list, a) ->
         Dxstr (list, a)
-    | Empty a ->
-        Xstr ("", a)
+    | Empty ->
+        Xstr ("", dummy_annot)
     | str ->
         Dxstr ([str], annot_of_expr str)
 end
