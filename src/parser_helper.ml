@@ -80,27 +80,12 @@ module Make (A : Ast.Annot) = struct
         Array ([item; list], dummy_annot)
 
   let literal_concat head tail =
-    let head =
-      match head with
-      | Evstr (_, a) -> Dstr ([head], a)
-      | _ -> head
-    in
-      match head, tail with
-      | Empty, _ -> tail
-      | _, Empty -> head
-      | Str (s1, a), Str (s2, _) ->
-          Str (s1 ^ s2, a)
-      | Dstr (list, a), Str _ ->
-          Dstr (list @ [tail], a)
-      | Str (_, a), Dstr (list, _) ->
-          Dstr (head :: list, a)
-      | Dstr (l1, a), Dstr (l2, _) ->
-          Dstr (l1 @ l2, a)
-      | Str (_, a), Evstr _ ->
-          Dstr ([head; tail], a)
-      | Dstr (l, a), Evstr _ ->
-          Dstr (l @ [tail], a)
-      | _, _ -> failwith "literal_concat: invalid literals"
+    match head, tail with
+    | Lit (Lit_string head_contents, annot),
+      Lit (Lit_string tail_contents, _) ->
+        Lit (Lit_string (head_contents @ tail_contents), annot)
+    | _, _ ->
+        invalid_arg "head, tail"
 
   let arg_concat args rest =
     args @ [Splat (rest, annot_of_expr rest)]
@@ -129,11 +114,6 @@ module Make (A : Ast.Annot) = struct
   let new_vcall ?(annot=dummy_annot) id =
     new_call Empty id [] ~annot
 
-  let new_evstr = function
-    | Empty -> Evstr (Empty, dummy_annot)
-    | Str _ | Dstr _ | Evstr _ as expr -> expr
-    | expr -> Evstr (expr, annot_of_expr expr)
-
   let new_yield ?(annot=dummy_annot) args =
     (* TODO error "Block argument should not be given." *)
     Yield (args, annot)
@@ -143,8 +123,8 @@ module Make (A : Ast.Annot) = struct
     | "nil"      -> Nil annot
     | "true"     -> True annot
     | "false"    -> False annot
-    | "__FILE__" -> Str ("TODO.rb", annot)
-    | "__LINE__" -> Lit (Lit_int 42, annot)
+    | "__FILE__" -> Lit (Lit_string [Str_contents "__FILE__"], annot)
+    | "__LINE__" -> Lit (Lit_integer 42, annot)
     | id         ->
         if Rid.is_class_var id then
           Cvar (id, annot)
@@ -224,12 +204,8 @@ module Make (A : Ast.Annot) = struct
   let get_match_node lhs rhs =
     let a = annot_of_expr lhs in
       match lhs, rhs with
-      | Dregx _,               _
-      | Dregx_once _,          _
       | Lit (Lit_regexp _, _), _
           -> Match2 (lhs, rhs, a)
-      | _,                     Dregx _
-      | _,                     Dregx_once _
       | _,                     Lit (Lit_regexp _, _)
           -> Match3 (rhs, lhs, a)
       | _,                     _
@@ -330,14 +306,4 @@ module Make (A : Ast.Annot) = struct
       | Not (e, _) -> e
       | _ -> Not (expr, dummy_annot)
     in new_while block expr pre ~annot
-
-  let new_xstring = function
-    | Str (str, a) ->
-        Xstr (str, a)
-    | Dstr (list, a) ->
-        Dxstr (list, a)
-    | Empty ->
-        Xstr ("", dummy_annot)
-    | str ->
-        Dxstr ([str], annot_of_expr str)
 end

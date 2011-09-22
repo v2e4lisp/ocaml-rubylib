@@ -4,12 +4,17 @@ let dummy_pos = Lexing.dummy_pos
 
 type identifier = string
 
-and literal =
-  | Lit_string of string
-  | Lit_symbol of string
-  | Lit_int of int
+and 'a literal =
+  | Lit_string of 'a string_contents list
+  | Lit_xstring of 'a string_contents list
+  | Lit_symbol of 'a string_contents list
+  | Lit_integer of int
   | Lit_float of float
-  | Lit_regexp of string
+  | Lit_regexp of 'a string_contents list * bool
+
+and 'a string_contents =
+  | Str_contents of string
+  | Str_interpol of 'a expr
 
 and 'a formal_param =
   | Param_id of identifier
@@ -38,19 +43,13 @@ and 'a expr =
   | Undef of identifier list * 'a
   | Defined of 'a expr * 'a
 
+  (* pseudo variables *)
   | Nil of 'a
   | True of 'a
   | False of 'a
   | Self of 'a
 
-  | Lit of literal * 'a
-  | Str of string * 'a
-  | Dstr of 'a expr list * 'a
-  | Evstr of 'a expr * 'a
-  | Xstr of string * 'a
-  | Dxstr of 'a expr list * 'a
-  | Dregx of 'a
-  | Dregx_once of 'a
+  | Lit of 'a literal * 'a
   | Nth_ref of int * 'a
   | Back_ref of char * 'a
 
@@ -135,13 +134,6 @@ let annot_of_expr = function
   | False (a)
   | Self (a)
   | Lit (_, a)
-  | Str (_, a)
-  | Dstr (_, a)
-  | Evstr (_, a)
-  | Xstr (_, a)
-  | Dxstr (_, a)
-  | Dregx (a)
-  | Dregx_once (a)
   | Nth_ref (_, a)
   | Back_ref (_, a)
   | Array (_, a)

@@ -453,7 +453,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | arg POW arg
                     { new_call $1 "**" [$3] ~annot:(annot $2) }
                 | UMINUS_NUM INTEGER POW arg
-                    { new_call (new_call (Lit (Lit_int (fst $2), annot (snd $2))) "**" [$4] ~annot:(annot $3)) "-@" [] ~annot:(annot $1) }
+                    { new_call (new_call (Lit (Lit_integer (fst $2), annot (snd $2))) "**" [$4] ~annot:(annot $3)) "-@" [] ~annot:(annot $1) }
                 | UMINUS_NUM FLOAT POW arg
                     { new_call (new_call (Lit (Lit_float (fst $2), annot (snd $2))) "**" [$4] ~annot:(annot $3)) "-@" [] ~annot:(annot $1) }
                 | UPLUS arg
@@ -921,19 +921,17 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { let lit_val =
                         match fst $1 with
                         | `Int num ->
-                            Lit_int num
+                            Lit_integer num
                         | `Float num ->
                             Lit_float num
                         | _ ->
                             failwith "never reach here"
                       in Lit (lit_val, annot (snd $1)) }
-                | symbol  { Lit (Lit_symbol (fst $1), annot (snd $1)) }
+                | symbol  { Lit (Lit_symbol [Str_contents (fst $1)], annot (snd $1)) }
                 | dsym    { $1 }
 
          strings: string
-                    { match $1 with
-                      | Evstr (node, a) -> Dstr ([node], a)
-                      | _ -> $1 }
+                    { $1 }
 
           string: string1
                     { $1 }
@@ -941,10 +939,10 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { literal_concat $1 $2 }
 
          string1: STRING_BEG string_contents STRING_END
-                    { $2 }
+                    { Lit (Lit_string $2, annot $1) }
 
          xstring: XSTRING_BEG xstring_contents STRING_END
-                    { new_xstring $2 }
+                    { Lit (Lit_xstring $2, annot $1) }
 
           regexp: REGEXP_BEG xstring_contents REGEXP_END
                     { new_regexp $2 "TODO" ~annot:(annot $1) }
@@ -957,15 +955,12 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
        word_list: none
                     { [] }
                 | word_list word SPACE
-                    { $1 @
-                        [match $2 with
-                         | Evstr (_, a) -> Dstr ([$2], a)
-                         | _ -> $2] }
+                    { $1 @ [$2] }
 
             word: string_content
-                    { $1 }
+                    { Lit (Lit_string [fst $1], annot (snd $1)) }
                 | word string_content
-                    { literal_concat $1 $2 }
+                    { literal_concat $1 (Lit (Lit_string [fst $2], annot (snd $2))) }
 
           awords: QWORDS_BEG SPACE STRING_END
                     { Array ([], annot $1) }
@@ -975,32 +970,32 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
       qword_list: none
                     { [] }
                 | qword_list STRING_CONTENT SPACE
-                    { $1 @ [Str (fst $2, annot (snd $2))] }
+                    { $1 @ [Lit (Lit_string [Str_contents (fst $2)], annot (snd $2))] }
 
  string_contents: none
-                    { Str ("", dummy_annot) }
+                    { [] }
                 | string_contents string_content
-                    { literal_concat $1 $2 }
+                    { $1 @ [(fst $2)] }
 
 xstring_contents: none 
-                    { Empty }
+                    { [] }
                 | xstring_contents string_content
-                    { literal_concat $1 $2 }
+                    { $1 @ [(fst $2)] }
 
   string_content: STRING_CONTENT
-                    { Str (fst $1, annot (snd $1)) }
+                    { Str_contents (fst $1), snd $1 }
                 | STRING_DVAR
                     string_content_e1
                     string_dvar
                     { state.lex_strterm <- $2;
-                      Evstr ($3, annot $1) }
+                      Str_interpol $3, $1 }
                 | STRING_DBEG
                     string_content_e2
                     compstmt RCURLY
                     { state.lex_strterm <- $2;
                       Stack_state.lexpop state.cond_stack;
                       Stack_state.lexpop state.cmdarg_stack;
-                      new_evstr $3 }
+                      Str_interpol $3, $1 }
 
 string_content_e1: { let ret = state.lex_strterm in
                        state.lex_strterm <- None;
@@ -1028,14 +1023,7 @@ string_content_e2: { let ret = state.lex_strterm in
                 | CVAR  { $1 }
 
             dsym: SYMBEG xstring_contents STRING_END
-                    { state.lex_state <- Expr_end;
-                      if $2 = Empty then
-                        yyerror "Empty symbol literal";
-                      match $2 with
-                      | Dstr (list, a) -> Dsym (list, a)
-                      | Str (str, a) -> Lit (Lit_string str, a)
-                      | Empty -> yyerror "empty symbol literal"
-                      | _ -> Dsym ([$2], annot $1) }
+                    { Lit (Lit_symbol $2, annot $1) }
 
          numeric: INTEGER
                     { `Int (fst $1), snd $1 }

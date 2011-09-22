@@ -60,37 +60,19 @@ and pp_expr' stmt fmt = function
   | False _ -> pp_string fmt "false"
   | Self _ -> pp_string fmt "self"
 
-  | Lit (Lit_string s, _) ->
-      fprintf fmt "\"%s\"" (String.escaped s)
-  | Lit (Lit_symbol symbol, _) ->
-      fprintf fmt ":%s" symbol
-  | Lit (Lit_int int, _) ->
+  | Lit (Lit_string contents, _) ->
+      pp_string_contents fmt contents
+  | Lit (Lit_xstring contents, _) ->
+      pp_string_contents fmt contents ~delim:'`'
+  | Lit (Lit_symbol contents, _) ->
+      pp_char fmt ':';
+      pp_string_contents fmt contents;
+  | Lit (Lit_integer int, _) ->
       pp_int fmt int
   | Lit (Lit_float float, _) ->
       pp_float fmt float
-  | Lit (Lit_regexp regexp, _) ->
-      fprintf fmt "/%s/" regexp
-
-  | Str (s, _) ->
-      fprintf fmt "\"%s\"" (String.escaped s)
-
-  | Dstr (es, _) ->
-      pp_fixme fmt
-
-  | Evstr (e, _) ->
-      fprintf fmt "#{%a}" pp_expr e
-
-  | Xstr (s, _) ->
-      pp_fixme fmt
-
-  | Dxstr (es, _) ->
-      pp_fixme fmt
-
-  | Dregx _ ->
-      pp_fixme fmt
-
-  | Dregx_once _ ->
-      pp_fixme fmt
+  | Lit (Lit_regexp (contents, _), _) ->
+      pp_string_contents fmt contents ~delim:'/'
 
   | Nth_ref (n, _) ->
       fprintf fmt "$%d" n
@@ -99,7 +81,7 @@ and pp_expr' stmt fmt = function
       fprintf fmt "$%c" c
 
   | Array (es, _) ->
-      fprintf fmt "[@[%a]]" pp_expr_list es
+      fprintf fmt "[@[%a]@]" pp_expr_list es
 
   | Splat (e, _) ->
       fprintf fmt "*%a" pp_expr e
@@ -368,6 +350,17 @@ and pp_expr' stmt fmt = function
 and pp_expr_list fmt = pp_list pp_expr fmt
 and pp_paren_expr_list fmt = pp_paren pp_expr_list fmt
 
+and pp_string_contents fmt ?(delim='"') contents =
+  pp_char fmt delim;
+  List.iter
+    (function
+     | Str_contents s ->
+         pp_string fmt (String.escaped s)
+     | Str_interpol e ->
+         fprintf fmt "#{%a}" pp_expr e)
+    contents;
+  pp_char fmt delim
+
 and pp_hash fmt = function
   | [] -> ()
   | k :: v :: xs ->
@@ -393,7 +386,7 @@ and pp_param fmt = function
       fprintf fmt "&%s" id
 
 and pp_binop fmt lhs op rhs =
-  fprintf fmt "(@[%a %s %a])"
+  fprintf fmt "(@[%a %s %a@])"
     pp_expr lhs op pp_expr rhs
 
 let pp_print_expr fmt expr = pp_expr fmt expr
