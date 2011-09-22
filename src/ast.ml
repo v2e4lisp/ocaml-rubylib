@@ -70,7 +70,6 @@ and 'a expr =
   | And of 'a expr * 'a expr * 'a
   | Or of 'a expr * 'a expr * 'a
 
-
   | Alias of identifier * identifier * 'a
   | Undef of identifier list * 'a
   | Defined of 'a expr * 'a
@@ -78,15 +77,11 @@ and 'a expr =
   | Splat of 'a expr * 'a
   | Svalue of 'a expr list * 'a
 
-
   | Preexec of 'a expr * 'a
   | Postexec of 'a expr * 'a
 
   | Block of 'a expr list * 'a
   | Begin of 'a begin_body * 'a
-
-  | Flip2 of 'a expr * 'a expr * 'a
-  | Flip3 of 'a expr * 'a expr * 'a
 
   | If of 'a expr * 'a expr * 'a expr * 'a
   | While of 'a expr * 'a expr * bool * 'a
@@ -155,8 +150,6 @@ let annot_of_expr = function
   | Not (_, a)
   | And (_, _, a)
   | Or (_, _, a)
-  | Flip2 (_, _, a)
-  | Flip3 (_, _, a)
   | If (_, _, _, a)
   | While (_, _, _, a)
   | Until (_, _, _, a)

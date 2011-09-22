@@ -131,12 +131,6 @@ and pp_expr' stmt fmt = function
   | Or (e1, e2, _) ->
       pp_binop fmt e1 "||" e2
 
-  | Flip2 (e1, e2, _) ->
-      pp_binop fmt e1 ".." e2
-
-  | Flip3 (e1, e2, _) ->
-      pp_binop fmt e1 "..." e2
-
   | If (c, t, e, _) ->
       fprintf fmt "@[<2>if %a@\n%a@]@\n"
         pp_expr c

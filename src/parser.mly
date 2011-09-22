@@ -92,9 +92,9 @@
                 | K_UNDEF undef_list
                     { Undef ($2, annot $1) }
                 | stmt K_IF_MOD expr_value
-                    { new_if $3 $1 Empty ~annot:(annot $2) }
+                    { If ($3, $1, Empty, annot $2) }
                 | stmt K_UNLESS_MOD expr_value
-                    { new_if $3 Empty $1 ~annot:(annot $2) }
+                    { If ($3, Empty, $1, annot $2) }
                 | stmt K_WHILE_MOD expr_value
                     { new_while $1 $3 true ~annot:(annot $2) }
                 | stmt K_UNTIL_MOD expr_value
@@ -668,9 +668,9 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | method_call brace_block
                     { Iter ($1, fst $2, snd $2, annot_of_expr $1) }
                 | K_IF expr_value then_ compstmt if_tail K_END
-                    { new_if $2 $4 $5 ~annot:(annot $1) }
+                    { If ($2, $4, $5, annot $1) }
                 | K_UNLESS expr_value then_ compstmt opt_else K_END
-                    { new_if $2 $5 $4 ~annot:(annot $1) }
+                    { If ($2, $5, $4, annot $1) }
                 | K_WHILE
                     primary_e2
                     expr_value do_

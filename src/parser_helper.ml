@@ -11,19 +11,6 @@ module Make (A : Ast.Annot) = struct
 
   let yyerror = error
 
-  let rec cond = function
-    | Literal (Lit_regexp _, a) as expr ->
-        Call (expr, "=~", [Gvar ("_", dummy_annot)], dummy_annot)
-    | And (lhs, rhs, a) ->
-        And (cond lhs, cond rhs, a)
-    | Or (lhs, rhs, a) ->
-        Or (cond lhs, cond rhs, a)
-    | Dot2 (lhs, rhs, a) ->
-        Flip2 (lhs, rhs, a)
-    | Dot3 (lhs, rhs, a) ->
-        Flip3 (lhs, rhs, a)
-    | expr -> expr
-
   let logop kind lhs rhs =
     let rec loop lhs rhs =
       match kind, lhs with
@@ -227,9 +214,6 @@ module Make (A : Ast.Annot) = struct
   let new_class ?(annot=dummy_annot) path superclass body =
     Class (path, superclass, body, annot)
 
-  let new_if ?(annot=dummy_annot) test then_ els =
-    If (cond test, then_, els, annot)
-
   let new_masgn ?(wrap=false) ?(annot=dummy_annot) mlhs mrhs =
     match mlhs with
     | [_]
@@ -284,7 +268,6 @@ module Make (A : Ast.Annot) = struct
                _) -> body, pre
       | _ -> block, false
     in
-    let expr = cond expr in
       match expr with
       | Not (e, _) ->
           Until (e, block, pre, annot)
