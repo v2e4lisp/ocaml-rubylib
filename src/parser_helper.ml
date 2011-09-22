@@ -13,7 +13,7 @@ module Make (A : Ast.Annot) = struct
 
   let rec cond = function
     | Literal (Lit_regexp _, a) as expr ->
-        Match (expr, a)
+        Call (expr, "=~", [Gvar ("_", dummy_annot)], dummy_annot)
     | And (lhs, rhs, a) ->
         And (cond lhs, cond rhs, a)
     | Or (lhs, rhs, a) ->
@@ -193,15 +193,14 @@ module Make (A : Ast.Annot) = struct
     | Const (id, a) -> Cdecl (id, rhs, a)
     | _ -> error "unknown lhs"
 
-  let get_match_node lhs rhs =
-    let a = annot_of_expr lhs in
-      match lhs, rhs with
-      | Literal (Lit_regexp _, _), _
-          -> Match2 (lhs, rhs, a)
-      | _,                     Literal (Lit_regexp _, _)
-          -> Match3 (rhs, lhs, a)
-      | _,                     _
-          -> Call (lhs, "=~", [rhs], a)
+  let get_match_node ?(annot=dummy_annot) lhs rhs =
+    match lhs, rhs with
+    | Literal (Lit_regexp _, _), _ ->
+        Call (lhs, "=~", [rhs], annot)
+    | _, Literal (Lit_regexp _, _) ->
+        Call (rhs, "=~", [lhs], annot)
+    | _, _ ->
+        Call (lhs, "=~", [rhs], annot)
 
   let new_aref ?(annot=dummy_annot) ary args =
     match ary with

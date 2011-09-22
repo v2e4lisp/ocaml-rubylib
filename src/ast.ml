@@ -39,44 +39,52 @@ and 'a case_body = {
 and 'a expr =
   | Empty
 
-  | Alias of identifier * identifier * 'a
-  | Undef of identifier list * 'a
-  | Defined of 'a expr * 'a
+  (* Literals *)
+  | Literal of 'a literal * 'a
 
-  (* Local, Dynamic, Instance, Class, Global Variables *)
+  (* Local, Dynamic, Instance, Class, Global variables *)
   | Lvar of identifier * 'a
   | Dvar of identifier * 'a
   | Ivar of identifier * 'a
   | Cvar of identifier * 'a
   | Gvar of identifier * 'a
 
-  (* Pseudo Variables *)
+  (* Pseudo variables *)
   | Nil   of 'a
   | True  of 'a
   | False of 'a
   | Self  of 'a
 
-  (* Literals *)
-  | Literal of 'a literal * 'a
-
+  (* Array contructor: [...] *)
   | Array of 'a expr list * 'a
-  | Splat of 'a expr * 'a
-  | Svalue of 'a expr list * 'a
+
+  (* Hash constructor: {...} *)
   | Hash of 'a expr list * 'a
+
+  (* Range constructor: .., ... *)
   | Dot2 of 'a expr * 'a expr * 'a
   | Dot3 of 'a expr * 'a expr * 'a
 
-  | Preexec of 'a expr * 'a
-  | Postexec of 'a expr * 'a
-  | Block of 'a expr list * 'a
-  | Begin of 'a begin_body * 'a
-
+  (* Logical expressions: not, and, or *)
   | Not of 'a expr * 'a
   | And of 'a expr * 'a expr * 'a
   | Or of 'a expr * 'a expr * 'a
-  | Match2 of 'a expr * 'a expr * 'a
-  | Match3 of 'a expr * 'a expr * 'a
-  | Match of 'a expr * 'a
+
+
+  | Alias of identifier * identifier * 'a
+  | Undef of identifier list * 'a
+  | Defined of 'a expr * 'a
+
+  | Splat of 'a expr * 'a
+  | Svalue of 'a expr list * 'a
+
+
+  | Preexec of 'a expr * 'a
+  | Postexec of 'a expr * 'a
+
+  | Block of 'a expr list * 'a
+  | Begin of 'a begin_body * 'a
+
   | Flip2 of 'a expr * 'a expr * 'a
   | Flip3 of 'a expr * 'a expr * 'a
 
@@ -147,9 +155,6 @@ let annot_of_expr = function
   | Not (_, a)
   | And (_, _, a)
   | Or (_, _, a)
-  | Match2 (_, _, a)
-  | Match3 (_, _, a)
-  | Match (_, a)
   | Flip2 (_, _, a)
   | Flip3 (_, _, a)
   | If (_, _, _, a)

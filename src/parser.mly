@@ -471,10 +471,9 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | arg NEQ arg
                     { Not (new_call $1 "==" [$3], dummy_annot) }
                 | arg MATCH arg
-                    { get_match_node $1 $3 }
+                    { get_match_node $1 $3 ~annot:(annot $2) }
                 | arg NMATCH arg
-                    { (* TODO NMATCH *)
-                      Not (get_match_node $1 $3, dummy_annot) }
+                    { Not (get_match_node $1 $3 ~annot:(annot $2), dummy_annot) }
                 | BANG arg
                     { Not ($2, annot $1) }
                 | TILDE arg

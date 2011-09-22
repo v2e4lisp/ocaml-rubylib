@@ -131,15 +131,6 @@ and pp_expr' stmt fmt = function
   | Or (e1, e2, _) ->
       pp_binop fmt e1 "||" e2
 
-  | Match2 (e1, e2, _) ->
-      pp_binop fmt e1 "=~" e2
-
-  | Match3 (e1, e2, _) ->
-      pp_binop fmt e2 "=~" e1
-
-  | Match (e, _) ->
-      pp_expr fmt e
-
   | Flip2 (e1, e2, _) ->
       pp_binop fmt e1 ".." e2
 
