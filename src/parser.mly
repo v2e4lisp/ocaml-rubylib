@@ -18,8 +18,6 @@
        K__FILE__
 %token <string * Lexing.position>
        IDENTIFIER FID GVAR IVAR CONSTANT CVAR
-%token <int * Lexing.position> NTH_REF
-%token <char * Lexing.position> BACK_REF
 %token <string * Lexing.position> STRING_CONTENT
 %token <int * Lexing.position> INTEGER
 %token <float * Lexing.position> FLOAT
@@ -91,10 +89,6 @@
                     { Alias ($2, $4, annot $1) }
                 | K_ALIAS GVAR GVAR
                     { Alias (fst $2, fst $3, annot $1) }
-                | K_ALIAS GVAR BACK_REF
-                    { Alias (fst $2, Printf.sprintf "$%c" (fst $3), annot $1) }
-                | K_ALIAS GVAR NTH_REF
-                    { yyerror "can't make alias for the number variables" }
                 | K_UNDEF undef_list
                     { Undef ($2, annot $1) }
                 | stmt K_IF_MOD expr_value
@@ -133,8 +127,6 @@
                     { Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4)) }
                 | primary_value COLON2 IDENTIFIER OP_ASGN command_call
                     { Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4)) }
-                | backref OP_ASGN command_call
-                    { backref_assign_error $1 }
                 | lhs EQL mrhs
                     { node_assign $1 (Svalue ($3, dummy_annot)) }
                 | mlhs EQL arg_value
@@ -263,8 +255,6 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
                       Colon3 (fst $2, annot (snd $2)) }
-                | backref
-                    { backref_assign_error $1 }
 
              lhs: variable
                     { assignable (fst $1) Empty ~annot:(annot (snd $1)) }
@@ -284,8 +274,6 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
                       Colon3 (fst $2, annot (snd $2)) }
-                | backref
-                    { backref_assign_error $1 }
 
            cname: IDENTIFIER
                     { yyerror "class/module name must be CONSTANT" }
@@ -416,8 +404,6 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { yyerror "constant re-assignment" }
                 | COLON3 CONSTANT OP_ASGN arg
                     { yyerror "constant re-assignment" }
-                | backref OP_ASGN arg
-                    { backref_assign_error $1 }
                 | arg DOT2 arg
                     { 
 (* TODO
@@ -453,12 +439,12 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | arg POW arg
                     { new_call $1 "**" [$3] ~annot:(annot $2) }
                 | UMINUS_NUM INTEGER POW arg
-                    { new_call (new_call (Lit (Lit_integer (fst $2), annot (snd $2))) "**" [$4] ~annot:(annot $3)) "-@" [] ~annot:(annot $1) }
+                    { new_call (new_call (Literal (Lit_integer (fst $2), annot (snd $2))) "**" [$4] ~annot:(annot $3)) "-@" [] ~annot:(annot $1) }
                 | UMINUS_NUM FLOAT POW arg
-                    { new_call (new_call (Lit (Lit_float (fst $2), annot (snd $2))) "**" [$4] ~annot:(annot $3)) "-@" [] ~annot:(annot $1) }
+                    { new_call (new_call (Literal (Lit_float (fst $2), annot (snd $2))) "**" [$4] ~annot:(annot $3)) "-@" [] ~annot:(annot $1) }
                 | UPLUS arg
                     { match $2 with
-                      | Lit _ -> $2
+                      | Literal _ -> $2
                       | _ -> new_call $2 "+@" [] ~annot:(annot $1) }
                 | UMINUS arg
                     { new_call $2 "-@" [] ~annot:(annot $1) }
@@ -641,8 +627,6 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | awords
                     { $1 }
                 | var_ref
-                    { $1 }
-                | backref
                     { $1 }
                 | FID
                     { new_fcall (fst $1) [] ~annot:(annot (snd $1)) }
@@ -926,8 +910,8 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                             Lit_float num
                         | _ ->
                             failwith "never reach here"
-                      in Lit (lit_val, annot (snd $1)) }
-                | symbol  { Lit (Lit_symbol [Str_contents (fst $1)], annot (snd $1)) }
+                      in Literal (lit_val, annot (snd $1)) }
+                | symbol  { Literal (Lit_symbol [Str_contents (fst $1)], annot (snd $1)) }
                 | dsym    { $1 }
 
          strings: string
@@ -939,10 +923,10 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { literal_concat $1 $2 }
 
          string1: STRING_BEG string_contents STRING_END
-                    { Lit (Lit_string $2, annot $1) }
+                    { Literal (Lit_string $2, annot $1) }
 
          xstring: XSTRING_BEG xstring_contents STRING_END
-                    { Lit (Lit_xstring $2, annot $1) }
+                    { Literal (Lit_xstring $2, annot $1) }
 
           regexp: REGEXP_BEG xstring_contents REGEXP_END
                     { new_regexp $2 "TODO" ~annot:(annot $1) }
@@ -958,9 +942,9 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { $1 @ [$2] }
 
             word: string_content
-                    { Lit (Lit_string [fst $1], annot (snd $1)) }
+                    { Literal (Lit_string [fst $1], annot (snd $1)) }
                 | word string_content
-                    { literal_concat $1 (Lit (Lit_string [fst $2], annot (snd $2))) }
+                    { literal_concat $1 (Literal (Lit_string [fst $2], annot (snd $2))) }
 
           awords: QWORDS_BEG SPACE STRING_END
                     { Array ([], annot $1) }
@@ -970,7 +954,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
       qword_list: none
                     { [] }
                 | qword_list STRING_CONTENT SPACE
-                    { $1 @ [Lit (Lit_string [Str_contents (fst $2)], annot (snd $2))] }
+                    { $1 @ [Literal (Lit_string [Str_contents (fst $2)], annot (snd $2))] }
 
  string_contents: none
                     { [] }
@@ -1011,7 +995,6 @@ string_content_e2: { let ret = state.lex_strterm in
      string_dvar: GVAR { Gvar (fst $1, annot (snd $1)) }
                 | IVAR { Ivar (fst $1, annot (snd $1)) }
                 | CVAR { Cvar (fst $1, annot (snd $1)) }
-                | backref { $1 }
 
           symbol: SYMBEG sym
                     { state.lex_state <- Expr_end;
@@ -1023,7 +1006,7 @@ string_content_e2: { let ret = state.lex_strterm in
                 | CVAR  { $1 }
 
             dsym: SYMBEG xstring_contents STRING_END
-                    { Lit (Lit_symbol $2, annot $1) }
+                    { Literal (Lit_symbol $2, annot $1) }
 
          numeric: INTEGER
                     { `Int (fst $1), snd $1 }
@@ -1051,11 +1034,6 @@ string_content_e2: { let ret = state.lex_strterm in
 
          var_lhs: variable
                     { assignable (fst $1) Empty ~annot:(annot (snd $1)) }
-
-         backref: NTH_REF
-                    { Nth_ref (fst $1, annot (snd $1)) }
-                | BACK_REF
-                    { Back_ref (fst $1, annot (snd $1)) }
 
       superclass: term
                     { Empty }

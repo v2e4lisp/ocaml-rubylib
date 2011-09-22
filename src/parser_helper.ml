@@ -12,7 +12,7 @@ module Make (A : Ast.Annot) = struct
   let yyerror = error
 
   let rec cond = function
-    | Lit (Lit_regexp _, a) as expr ->
+    | Literal (Lit_regexp _, a) as expr ->
         Match (expr, a)
     | And (lhs, rhs, a) ->
         And (cond lhs, cond rhs, a)
@@ -46,7 +46,7 @@ module Make (A : Ast.Annot) = struct
     | _, Empty -> head
     | Empty, _
         (* Do not drop literals.
-           | Lit _, _
+           | Literal _, _
            | Str _, _ -> tail
         *)
     | _, _ ->
@@ -81,9 +81,9 @@ module Make (A : Ast.Annot) = struct
 
   let literal_concat head tail =
     match head, tail with
-    | Lit (Lit_string head_contents, annot),
-      Lit (Lit_string tail_contents, _) ->
-        Lit (Lit_string (head_contents @ tail_contents), annot)
+    | Literal (Lit_string head_contents, annot),
+      Literal (Lit_string tail_contents, _) ->
+        Literal (Lit_string (head_contents @ tail_contents), annot)
     | _, _ ->
         invalid_arg "head, tail"
 
@@ -123,8 +123,8 @@ module Make (A : Ast.Annot) = struct
     | "nil"      -> Nil annot
     | "true"     -> True annot
     | "false"    -> False annot
-    | "__FILE__" -> Lit (Lit_string [Str_contents "__FILE__"], annot)
-    | "__LINE__" -> Lit (Lit_integer 42, annot)
+    | "__FILE__" -> Literal (Lit_string [Str_contents "__FILE__"], annot)
+    | "__LINE__" -> Literal (Lit_integer 42, annot)
     | id         ->
         if Rid.is_class_var id then
           Cvar (id, annot)
@@ -175,14 +175,6 @@ module Make (A : Ast.Annot) = struct
           | None ->
               Lasgn (id, value, annot)
 
-  let backref_assign_error = function
-    | Nth_ref (nth, _) ->
-        error (Printf.sprintf "Can't set variable $%d" nth)
-    | Back_ref (c, _) ->
-        error (Printf.sprintf "Can't set variable $%c" c)
-    | _ ->
-        Empty
-
   let node_assign lhs rhs =
     match lhs with
     | Empty -> lhs
@@ -204,9 +196,9 @@ module Make (A : Ast.Annot) = struct
   let get_match_node lhs rhs =
     let a = annot_of_expr lhs in
       match lhs, rhs with
-      | Lit (Lit_regexp _, _), _
+      | Literal (Lit_regexp _, _), _
           -> Match2 (lhs, rhs, a)
-      | _,                     Lit (Lit_regexp _, _)
+      | _,                     Literal (Lit_regexp _, _)
           -> Match3 (rhs, lhs, a)
       | _,                     _
           -> Call (lhs, "=~", [rhs], a)

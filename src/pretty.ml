@@ -60,25 +60,19 @@ and pp_expr' stmt fmt = function
   | False _ -> pp_string fmt "false"
   | Self _ -> pp_string fmt "self"
 
-  | Lit (Lit_string contents, _) ->
+  | Literal (Lit_string contents, _) ->
       pp_string_contents fmt contents
-  | Lit (Lit_xstring contents, _) ->
+  | Literal (Lit_xstring contents, _) ->
       pp_string_contents fmt contents ~delim:'`'
-  | Lit (Lit_symbol contents, _) ->
+  | Literal (Lit_symbol contents, _) ->
       pp_char fmt ':';
       pp_string_contents fmt contents;
-  | Lit (Lit_integer int, _) ->
+  | Literal (Lit_integer int, _) ->
       pp_int fmt int
-  | Lit (Lit_float float, _) ->
+  | Literal (Lit_float float, _) ->
       pp_float fmt float
-  | Lit (Lit_regexp (contents, _), _) ->
+  | Literal (Lit_regexp (contents, _), _) ->
       pp_string_contents fmt contents ~delim:'/'
-
-  | Nth_ref (n, _) ->
-      fprintf fmt "$%d" n
-
-  | Back_ref (c, _) ->
-      fprintf fmt "$%c" c
 
   | Array (es, _) ->
       fprintf fmt "[@[%a]@]" pp_expr_list es
@@ -264,8 +258,6 @@ and pp_expr' stmt fmt = function
   | Lvar (id, _)
   | Dvar (id, _) ->
       pp_string fmt id
-  | Dsym (es, _) ->
-      pp_fixme fmt
   | Ivar (id, _)
   | Cvar (id, _)
   | Gvar (id, _) ->

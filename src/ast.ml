@@ -43,15 +43,21 @@ and 'a expr =
   | Undef of identifier list * 'a
   | Defined of 'a expr * 'a
 
-  (* pseudo variables *)
-  | Nil of 'a
-  | True of 'a
-  | False of 'a
-  | Self of 'a
+  (* Local, Dynamic, Instance, Class, Global Variables *)
+  | Lvar of identifier * 'a
+  | Dvar of identifier * 'a
+  | Ivar of identifier * 'a
+  | Cvar of identifier * 'a
+  | Gvar of identifier * 'a
 
-  | Lit of 'a literal * 'a
-  | Nth_ref of int * 'a
-  | Back_ref of char * 'a
+  (* Pseudo Variables *)
+  | Nil   of 'a
+  | True  of 'a
+  | False of 'a
+  | Self  of 'a
+
+  (* Literals *)
+  | Literal of 'a literal * 'a
 
   | Array of 'a expr list * 'a
   | Splat of 'a expr * 'a
@@ -95,12 +101,6 @@ and 'a expr =
   | Const of identifier * 'a
   | Colon2 of 'a expr * identifier * 'a
   | Colon3 of identifier * 'a
-  | Lvar of identifier * 'a
-  | Dvar of identifier * 'a
-  | Dsym of 'a expr list * 'a
-  | Ivar of identifier * 'a
-  | Cvar of identifier * 'a
-  | Gvar of identifier * 'a
 
   | Cdecl of identifier * 'a expr * 'a
   | Lasgn of identifier * 'a expr * 'a
@@ -133,9 +133,7 @@ let annot_of_expr = function
   | True (a)
   | False (a)
   | Self (a)
-  | Lit (_, a)
-  | Nth_ref (_, a)
-  | Back_ref (_, a)
+  | Literal (_, a)
   | Array (_, a)
   | Splat (_, a)
   | Svalue (_, a)
@@ -175,7 +173,6 @@ let annot_of_expr = function
   | Colon3 (_, a)
   | Lvar (_, a)
   | Dvar (_, a)
-  | Dsym (_, a)
   | Ivar (_, a)
   | Cvar (_, a)
   | Gvar (_, a)

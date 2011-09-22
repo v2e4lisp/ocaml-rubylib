@@ -464,18 +464,9 @@ and token_case state = parse
                 '=' ':' '<' '>' '"']) as id
       { state.lex_state <- Expr_end;
         GVAR (id, start_pos lexbuf) }
-  | '$' ['&' '`' '\'' '+'] as id
+  | '$' (['&' '`' '\'' '+'] | ['1'-'9'] ['0'-'9']*) as id
       { state.lex_state <- Expr_end;
-        if state.last_state = Expr_fname then
-          GVAR (id, start_pos lexbuf)
-        else
-          BACK_REF (id.[1], start_pos lexbuf) }
-  | '$' (['1'-'9'] ['0'-'9']* as n) as id
-      { state.lex_state <- Expr_end;
-        if state.last_state = Expr_fname then
-          GVAR (id, start_pos lexbuf)
-        else
-          NTH_REF (int_of_string n, start_pos lexbuf) }
+        GVAR (id, start_pos lexbuf) }
   | "$0" as id
       { process_id id state lexbuf }
   | '$' ident+ as id
