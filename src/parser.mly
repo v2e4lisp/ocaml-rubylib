@@ -639,7 +639,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                       $2 }
                 | LPAREN compstmt RPAREN
                     { match $2 with
-                      | Empty -> Nil dummy_annot
+                      | Empty -> Identifier (Id_pseudo Pid_nil, dummy_annot)
                       | _ -> $2 }
                 | primary_value COLON2 CONSTANT
                     { Colon2 ($1, fst $3, annot (snd $3)) }
@@ -877,7 +877,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
       opt_rescue: K_RESCUE exc_list exc_var then_ compstmt opt_rescue
                     { let body =
                         if $3 = Empty
-                        then append_to_block (node_assign $3 (Gvar ("$!", dummy_annot))) $5
+                        then append_to_block (node_assign $3 (Identifier (Id_global "!", dummy_annot))) $5
                         else $5
                       in ($2, body) :: $6 }
                 | none
@@ -991,9 +991,9 @@ string_content_e2: { let ret = state.lex_strterm in
                        Stack_state.push state.cmdarg_stack false;
                        ret }
 
-     string_dvar: GVAR { Gvar (fst $1, annot (snd $1)) }
-                | IVAR { Ivar (fst $1, annot (snd $1)) }
-                | CVAR { Cvar (fst $1, annot (snd $1)) }
+     string_dvar: GVAR { Identifier (Id_global (fst $1), annot (snd $1)) }
+                | IVAR { Identifier (Id_instance (fst $1), annot (snd $1)) }
+                | CVAR { Identifier (Id_class (fst $1), annot (snd $1)) }
 
           symbol: SYMBEG sym
                     { state.lex_state <- Expr_end;

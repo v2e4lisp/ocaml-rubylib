@@ -2,9 +2,7 @@ type pos = Lexing.position
 
 let dummy_pos = Lexing.dummy_pos
 
-type identifier = string
-
-and 'a literal =
+type 'a literal =
   | Lit_string of 'a string_contents list
   | Lit_xstring of 'a string_contents list
   | Lit_symbol of 'a string_contents list
@@ -12,16 +10,31 @@ and 'a literal =
   | Lit_float of float
   | Lit_regexp of 'a string_contents list * bool
 
+and identifier =
+  | Id_local of string
+  | Id_dynamic of string
+  | Id_instance of string
+  | Id_class of string
+  | Id_global of string
+  | Id_constant of string
+  | Id_pseudo of pseudo_variable
+
+and pseudo_variable =
+  | Pid_nil
+  | Pid_true
+  | Pid_false
+  | Pid_self
+
 and 'a string_contents =
   | Str_contents of string
   | Str_interpol of 'a expr
 
 and 'a formal_param =
-  | Param_id of identifier
-  | Param_opt of identifier * 'a expr
-  | Param_rest of identifier
+  | Param_id of string
+  | Param_opt of string * 'a expr
+  | Param_rest of string
   | Param_star
-  | Param_block of identifier
+  | Param_block of string
 
 and 'a begin_body = {
   body : 'a expr;
@@ -39,21 +52,9 @@ and 'a case_body = {
 and 'a expr =
   | Empty
 
-  (* Literals *)
   | Literal of 'a literal * 'a
 
-  (* Local, Dynamic, Instance, Class, Global variables *)
-  | Lvar of identifier * 'a
-  | Dvar of identifier * 'a
-  | Ivar of identifier * 'a
-  | Cvar of identifier * 'a
-  | Gvar of identifier * 'a
-
-  (* Pseudo variables *)
-  | Nil   of 'a
-  | True  of 'a
-  | False of 'a
-  | Self  of 'a
+  | Identifier of identifier * 'a
 
   (* Array contructor: [...] *)
   | Array of 'a expr list * 'a
@@ -70,8 +71,8 @@ and 'a expr =
   | And of 'a expr * 'a expr * 'a
   | Or of 'a expr * 'a expr * 'a
 
-  | Alias of identifier * identifier * 'a
-  | Undef of identifier list * 'a
+  | Alias of string * string * 'a
+  | Undef of string list * 'a
   | Defined of 'a expr * 'a
 
   | Splat of 'a expr * 'a
@@ -93,7 +94,7 @@ and 'a expr =
   | Redo of 'a
   | Retry of 'a
 
-  | Call of 'a expr * identifier * 'a expr list * 'a
+  | Call of 'a expr * string * 'a expr list * 'a
   | Iter of 'a expr * 'a expr list * 'a expr * 'a
   | Block_pass of 'a expr * 'a
   | Return of 'a expr list * 'a
@@ -101,42 +102,39 @@ and 'a expr =
   | Super of 'a expr list * 'a
   | Zsuper of 'a
 
-  | Const of identifier * 'a
-  | Colon2 of 'a expr * identifier * 'a
-  | Colon3 of identifier * 'a
+  | Const of string * 'a
+  | Colon2 of 'a expr * string * 'a
+  | Colon3 of string * 'a
 
-  | Cdecl of identifier * 'a expr * 'a
-  | Lasgn of identifier * 'a expr * 'a
-  | Dasgn of identifier * 'a expr * 'a
-  | Iasgn of identifier * 'a expr * 'a
-  | Cvasgn of identifier * 'a expr * 'a
-  | Cvdecl of identifier * 'a expr * 'a
-  | Gasgn of identifier * 'a expr * 'a
+  | Cdecl of string * 'a expr * 'a
+  | Lasgn of string * 'a expr * 'a
+  | Dasgn of string * 'a expr * 'a
+  | Iasgn of string * 'a expr * 'a
+  | Cvasgn of string * 'a expr * 'a
+  | Cvdecl of string * 'a expr * 'a
+  | Gasgn of string * 'a expr * 'a
   | Masgn of 'a expr * 'a expr * 'a
 
-  | Op_asgn1 of 'a expr * 'a expr list * identifier * 'a expr * 'a
-  | Op_asgn2 of 'a expr * identifier * identifier * 'a expr * 'a
-  | Op_asgn of 'a expr * 'a expr * identifier * identifier  * 'a
+  | Op_asgn1 of 'a expr * 'a expr list * string * 'a expr * 'a
+  | Op_asgn2 of 'a expr * string * string * 'a expr * 'a
+  | Op_asgn of 'a expr * 'a expr * string * string  * 'a
   | Op_asgn_or of 'a expr * 'a expr * 'a
   | Op_asgn_and of 'a expr * 'a expr * 'a
-  | Attrasgn of 'a expr * identifier * 'a expr list * 'a
+  | Attrasgn of 'a expr * string * 'a expr list * 'a
 
   | Class of 'a expr * 'a expr * 'a expr * 'a
   | Sclass of 'a expr * 'a expr * 'a
   | Module of 'a expr * 'a expr * 'a
-  | Defn of identifier * 'a formal_param list * 'a expr * 'a
-  | Defs of 'a expr * identifier * 'a formal_param list * 'a expr * 'a
+  | Defn of string * 'a formal_param list * 'a expr * 'a
+  | Defs of 'a expr * string * 'a formal_param list * 'a expr * 'a
 
 let annot_of_expr = function
   | Empty -> raise Not_found
   | Alias (_, _, a)
   | Undef (_, a)
   | Defined (_, a)
-  | Nil (a)
-  | True (a)
-  | False (a)
-  | Self (a)
   | Literal (_, a)
+  | Identifier (_, a)
   | Array (_, a)
   | Splat (_, a)
   | Svalue (_, a)
@@ -169,11 +167,6 @@ let annot_of_expr = function
   | Const (_, a)
   | Colon2 (_, _, a)
   | Colon3 (_, a)
-  | Lvar (_, a)
-  | Dvar (_, a)
-  | Ivar (_, a)
-  | Cvar (_, a)
-  | Gvar (_, a)
   | Cdecl (_, _, a)
   | Lasgn (_, _, a)
   | Dasgn (_, _, a)

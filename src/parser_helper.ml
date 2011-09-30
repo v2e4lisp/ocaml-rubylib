@@ -106,29 +106,30 @@ module Make (A : Ast.Annot) = struct
     Yield (args, annot)
 
   let gettable ?(annot=dummy_annot) = function
-    | "self"     -> Self annot
-    | "nil"      -> Nil annot
-    | "true"     -> True annot
-    | "false"    -> False annot
+    | "nil"      -> Identifier (Id_pseudo Pid_nil, annot)
+    | "true"     -> Identifier (Id_pseudo Pid_true, annot)
+    | "false"    -> Identifier (Id_pseudo Pid_false, annot)
+    | "self"     -> Identifier (Id_pseudo Pid_self, annot)
     | "__FILE__" -> Literal (Lit_string [Str_contents "__FILE__"], annot)
     | "__LINE__" -> Literal (Lit_integer 42, annot)
     | id         ->
-        if Rid.is_class_var id then
-          Cvar (id, annot)
-        else if Rid.is_instance_var id then
-          Ivar (id, annot)
-        else if Rid.is_global_var id then
-          Gvar (id, annot)
-        else if Rid.is_const id then
-          Const (id, annot)
-        else
-          match Env.find state.env id with
-          | Some `Lvar ->
-              Lvar (id, annot)
-          | Some `Dvar ->
-              Dvar (id, annot)
-          | None ->
-              new_vcall id ~annot
+        let length = String.length id in
+          if Rid.is_class_var id then
+            Identifier (Id_class (String.sub id 2 (length - 2)), annot)
+          else if Rid.is_instance_var id then
+            Identifier (Id_instance (String.sub id 1 (length - 1)), annot)
+          else if Rid.is_global_var id then
+            Identifier (Id_global (String.sub id 1 (length - 1)), annot)
+          else if Rid.is_const id then
+            Identifier (Id_constant id, annot)
+          else
+            match Env.find state.env id with
+            | Some `Lvar ->
+                Identifier (Id_local id, annot)
+            | Some `Dvar ->
+                Identifier (Id_dynamic id, annot)
+            | None ->
+                new_vcall id ~annot
 
   let assignable ?(annot=dummy_annot) id value =
     match id with
@@ -191,7 +192,7 @@ module Make (A : Ast.Annot) = struct
 
   let new_aref ?(annot=dummy_annot) ary args =
     match ary with
-    | Self _ ->
+    | Identifier (Id_pseudo Pid_self, _) ->
         new_fcall "[]" args ~annot
     | _ ->
         new_call ary "[]" args ~annot

@@ -55,11 +55,6 @@ and pp_expr' stmt fmt = function
   | Defined (e, _) ->
       fprintf fmt "defined %a" pp_expr e
 
-  | Nil _ -> pp_string fmt "nil"
-  | True _ -> pp_string fmt "true"
-  | False _ -> pp_string fmt "false"
-  | Self _ -> pp_string fmt "self"
-
   | Literal (Lit_string contents, _) ->
       pp_string_contents fmt contents
   | Literal (Lit_xstring contents, _) ->
@@ -73,6 +68,20 @@ and pp_expr' stmt fmt = function
       pp_float fmt float
   | Literal (Lit_regexp (contents, _), _) ->
       pp_string_contents fmt contents ~delim:'/'
+
+  | Identifier (id, _) ->
+      begin match id with
+      | Id_local id         -> pp_string fmt id
+      | Id_dynamic id       -> pp_string fmt id
+      | Id_instance id      -> fprintf fmt "@%s" id
+      | Id_class id         -> fprintf fmt "@@%s" id
+      | Id_global id        -> fprintf fmt "$%s" id
+      | Id_constant id      -> pp_string fmt id
+      | Id_pseudo Pid_nil   -> pp_string fmt "nil"
+      | Id_pseudo Pid_true  -> pp_string fmt "true"
+      | Id_pseudo Pid_false -> pp_string fmt "false"
+      | Id_pseudo Pid_self  -> pp_string fmt "self"
+      end
 
   | Array (es, _) ->
       fprintf fmt "[@[%a]@]" pp_expr_list es
@@ -239,14 +248,6 @@ and pp_expr' stmt fmt = function
 
   | Colon3 (id, _) ->
       fprintf fmt "::%s" id
-
-  | Lvar (id, _)
-  | Dvar (id, _) ->
-      pp_string fmt id
-  | Ivar (id, _)
-  | Cvar (id, _)
-  | Gvar (id, _) ->
-      pp_string fmt id
 
   | Cdecl (id, e, _)
   | Lasgn (id, e, _)
