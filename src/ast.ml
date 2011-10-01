@@ -36,66 +36,68 @@ and 'a formal_param =
   | Param_star
   | Param_block of string
 
-and 'a begin_body = {
-  body : 'a expr;
-  body_rescues : ('a expr list * 'a expr) list;
-  body_else : 'a expr;
-  body_ensure : 'a expr;
+and 'a case_stmt = {
+  case_expr : 'a expr;
+  case_whens : ('a expr list * 'a stmt list) list;
+  case_else : 'a stmt list;
 }
 
-and 'a case_body = {
-  case_expr : 'a expr;
-  case_whens : ('a expr list * 'a expr) list;
-  case_else : 'a expr;
+and 'a body_stmt = {
+  body : 'a stmt list;
+  body_rescues : ('a expr list * 'a stmt list) list;
+  body_else : 'a stmt list;
+  body_ensure : 'a stmt list
 }
+
+and 'a stmt =
+  | Alias of string * string * 'a
+  | Undef of string list * 'a
+
+  | If_mod of 'a stmt * 'a expr * 'a
+  | Unless_mod of 'a stmt * 'a expr * 'a
+  | While_mod of 'a stmt * 'a expr * 'a
+  | Until_mod of 'a stmt * 'a expr * 'a
+  | Rescue_mod of 'a stmt * 'a stmt * 'a
+
+  | Pre_exec of 'a stmt list * 'a
+  | Post_exec of 'a stmt list * 'a
+
+  | Expr of 'a expr * 'a
 
 and 'a expr =
   | Empty
 
   | Literal of 'a literal * 'a
-
   | Identifier of identifier * 'a
 
-  (* Array contructor: [...] *)
   | Array of 'a expr list * 'a
-
-  (* Hash constructor: {...} *)
   | Hash of 'a expr list * 'a
-
-  (* Range constructor: .., ... *)
   | Dot2 of 'a expr * 'a expr * 'a
   | Dot3 of 'a expr * 'a expr * 'a
 
-  (* Logical expressions: not, and, or *)
   | Not of 'a expr * 'a
   | And of 'a expr * 'a expr * 'a
   | Or of 'a expr * 'a expr * 'a
 
-  | Alias of string * string * 'a
-  | Undef of string list * 'a
   | Defined of 'a expr * 'a
 
   | Splat of 'a expr * 'a
   | Svalue of 'a expr list * 'a
 
-  | Preexec of 'a expr * 'a
-  | Postexec of 'a expr * 'a
-
-  | Block of 'a expr list * 'a
-  | Begin of 'a begin_body * 'a
-
-  | If of 'a expr * 'a expr * 'a expr * 'a
-  | While of 'a expr * 'a expr * bool * 'a
-  | Until of 'a expr * 'a expr * bool * 'a
-  | For of 'a expr * 'a expr list * 'a expr * 'a
-  | Case of 'a case_body * 'a
+  | Ternary of 'a expr * 'a expr * 'a expr * 'a
+  | If of 'a expr * 'a stmt list * 'a stmt list * 'a
+  | Unless of 'a expr * 'a stmt list * 'a stmt list * 'a
+  | While of 'a expr * 'a stmt list * 'a
+  | Until of 'a expr * 'a stmt list * 'a
+  | For of 'a expr list * 'a expr * 'a stmt list * 'a
+  | Case of 'a case_stmt * 'a
   | Break of 'a expr list * 'a
   | Next of 'a expr list * 'a
   | Redo of 'a
   | Retry of 'a
 
   | Call of 'a expr * string * 'a expr list * 'a
-  | Iter of 'a expr * 'a expr list * 'a expr * 'a
+  | Iter of 'a expr * 'a expr list * 'a stmt list * 'a
   | Block_pass of 'a expr * 'a
   | Return of 'a expr list * 'a
   | Yield of 'a expr list * 'a
@@ -122,16 +124,18 @@ and 'a expr =
   | Op_asgn_and of 'a expr * 'a expr * 'a
   | Attrasgn of 'a expr * string * 'a expr list * 'a
 
-  | Class of 'a expr * 'a expr * 'a expr * 'a
-  | Sclass of 'a expr * 'a expr * 'a
-  | Module of 'a expr * 'a expr * 'a
-  | Defn of string * 'a formal_param list * 'a expr * 'a
-  | Defs of 'a expr * string * 'a formal_param list * 'a expr * 'a
+  | Class of 'a expr * 'a expr * 'a body_stmt * 'a
+  | Sclass of 'a expr * 'a body_stmt * 'a
+  | Module of 'a expr * 'a body_stmt * 'a
+  | Defn of string * 'a formal_param list * 'a body_stmt * 'a
+  | Defs of 'a expr * string * 'a formal_param list * 'a body_stmt * 'a
+
+  | Begin of 'a body_stmt * 'a
+  | Block of 'a stmt list * 'a
 
 let annot_of_expr = function
   | Empty -> raise Not_found
-  | Alias (_, _, a)
-  | Undef (_, a)
+  | Block (_, a)
   | Defined (_, a)
   | Literal (_, a)
   | Identifier (_, a)
@@ -141,16 +145,15 @@ let annot_of_expr = function
   | Hash (_, a)
   | Dot2 (_, _, a)
   | Dot3 (_, _, a)
-  | Preexec (_, a)
-  | Postexec (_, a)
-  | Block (_, a)
   | Begin (_, a)
   | Not (_, a)
   | And (_, _, a)
   | Or (_, _, a)
+  | Ternary (_, _, _, a)
   | If (_, _, _, a)
-  | While (_, _, _, a)
-  | Until (_, _, _, a)
+  | Unless (_, _, _, a)
+  | While (_, _, a)
+  | Until (_, _, a)
   | For (_, _, _, a)
   | Case (_, a)
   | Break (_, a)

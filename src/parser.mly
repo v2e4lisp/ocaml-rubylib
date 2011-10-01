@@ -37,7 +37,7 @@
 %token NL SPACE EOF
 
 %start program
-%type <A.t expr> program
+%type <A.t stmt list> program
 
 %nonassoc LOWEST
 %nonassoc LBRACE_ARG
@@ -69,19 +69,22 @@
       program_e1: { state.lex_state <- Expr_beg }
 
         bodystmt: compstmt opt_rescue opt_else opt_ensure
-                    { new_body $1 $2 $3 $4 ~annot:(annot_of_expr $1) }
+                    { { body = $1;
+                        body_rescues = $2;
+                        body_else = $3;
+                        body_ensure = $4 } }
 
         compstmt: stmts opt_terms
                     { $1 }
 
            stmts: none
-                    { $1 }
+                    { [] }
                 | stmt
-                    { $1 }
+                    { [$1] }
                 | stmts terms stmt
-                    { block_append $1 $3 }
+                    { $1 @ [$3] }
                 | error stmt
-                    { $2 }
+                    { [$2] }
 
             stmt: K_ALIAS fitem
                     stmt_e1
@@ -92,49 +95,45 @@
                 | K_UNDEF undef_list
                     { Undef ($2, annot $1) }
                 | stmt K_IF_MOD expr_value
-                    { If ($3, $1, Empty, annot $2) }
+                    { If_mod ($1, $3, annot $2) }
                 | stmt K_UNLESS_MOD expr_value
-                    { If ($3, Empty, $1, annot $2) }
+                    { Unless_mod ($1, $3, annot $2) }
                 | stmt K_WHILE_MOD expr_value
-                    { new_while $1 $3 true ~annot:(annot $2) }
+                    { While_mod ($1, $3, annot $2) }
                 | stmt K_UNTIL_MOD expr_value
-                    { new_until $1 $3 true ~annot:(annot $2) }
+                    { Until_mod ($1, $3, annot $2) }
                 | stmt K_RESCUE_MOD stmt
-                    { Begin ({ body = $1;
-                               body_rescues = [[], $3];
-                               body_else = Empty;
-                               body_ensure = Empty },
-                             annot $2) }
+                    { Rescue_mod ($1, $3, annot $2) }
                 | K_lBEGIN
                     stmt_e2
                     LCURLY compstmt RCURLY
-                    { Preexec ($4, annot $1) }
+                    { Pre_exec ($4, annot $1) }
                 | K_lEND LCURLY compstmt RCURLY
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "END in method; use at_exit";
-                      Postexec ($3, annot $1) }
+                      Post_exec ($3, annot $1) }
                 | lhs EQL command_call
-                    { node_assign $1 $3 }
+                    { expr_stmt (node_assign $1 $3) }
                 | mlhs EQL command_call
-                    { new_masgn $1 $3 ~annot:(annot $2) }
+                    { expr_stmt (new_masgn $1 $3 ~annot:(annot $2)) }
                 | var_lhs OP_ASGN command_call
-                    { new_op_asgn $1 (fst $2) $3 ~annot:(annot (snd $2)) }
+                    { expr_stmt (new_op_asgn $1 (fst $2) $3 ~annot:(annot (snd $2))) }
                 | primary_value LB aref_args RBRACK OP_ASGN command_call
-                    { Op_asgn1 ($1, $3, fst $5, $6, annot (snd $5)) }
+                    { expr_stmt (Op_asgn1 ($1, $3, fst $5, $6, annot (snd $5))) }
                 | primary_value DOT IDENTIFIER OP_ASGN command_call
-                    { Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4)) }
+                    { expr_stmt (Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4))) }
                 | primary_value DOT CONSTANT OP_ASGN command_call
-                    { Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4)) }
+                    { expr_stmt (Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4))) }
                 | primary_value COLON2 IDENTIFIER OP_ASGN command_call
-                    { Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4)) }
+                    { expr_stmt (Op_asgn ($1, $5, fst $3, fst $4, annot (snd $4))) }
                 | lhs EQL mrhs
-                    { node_assign $1 (Svalue ($3, dummy_annot)) }
+                    { expr_stmt (node_assign $1 (Svalue ($3, dummy_annot))) }
                 | mlhs EQL arg_value
-                    { new_masgn $1 $3 ~annot:(annot $2) }
+                    { expr_stmt (new_masgn $1 $3 ~annot:(annot $2)) }
                 | mlhs EQL mrhs
-                    { Masgn (Array ($1, dummy_annot), Array ($3, dummy_annot), annot $2) }
+                    { expr_stmt (Masgn (Array ($1, dummy_annot), Array ($3, dummy_annot), annot $2)) }
                 | expr
-                    { $1 }
+                    { expr_stmt $1 }
          stmt_e1: { state.lex_state <- Expr_fname;
                     (*result = self.lexer.lineno*)
                     0 }
@@ -385,10 +384,10 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { node_assign $1 $3 }
                 | lhs EQL arg K_RESCUE_MOD arg
                     { node_assign $1
-                        (Begin ({ body = $3;
-                                  body_rescues = [[], $5];
-                                  body_else = Empty;
-                                  body_ensure = Empty },
+                        (Begin ({ body = [expr_stmt $3];
+                                  body_rescues = [[], [expr_stmt $5]];
+                                  body_else = [];
+                                  body_ensure = [] },
                                 annot $4)) }
                 | var_lhs OP_ASGN arg
                     { new_op_asgn $1 (fst $2) $3 ~annot:(annot (snd $2)) }
@@ -489,7 +488,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | K_DEFINED opt_nl arg
                     { Defined ($3, annot $1) }
                 | arg EH arg COLON arg
-                    { If ($1, $3, $5, annot_of_expr $1) }
+                    { Ternary ($1, $3, $5, annot_of_expr $1) }
                 | primary
                     { $1 }
 
@@ -629,9 +628,8 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { $1 }
                 | FID
                     { new_fcall (fst $1) [] ~annot:(annot (snd $1)) }
-                | K_BEGIN
-                    bodystmt K_END
-                    { $2 }
+                | K_BEGIN bodystmt K_END
+                    { Begin ($2, annot $1) }
                 | LPAREN_ARG expr
                     primary_e1
                     opt_nl RPAREN
@@ -639,8 +637,8 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                       $2 }
                 | LPAREN compstmt RPAREN
                     { match $2 with
-                      | Empty -> Identifier (Id_pseudo Pid_nil, dummy_annot)
-                      | _ -> $2 }
+                      | [] -> Identifier (Id_pseudo Pid_nil, annot $1)
+                      | _  -> Block ($2, annot $1) }
                 | primary_value COLON2 CONSTANT
                     { Colon2 ($1, fst $3, annot (snd $3)) }
                 | COLON3 CONSTANT
@@ -670,19 +668,19 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | K_IF expr_value then_ compstmt if_tail K_END
                     { If ($2, $4, $5, annot $1) }
                 | K_UNLESS expr_value then_ compstmt opt_else K_END
-                    { If ($2, $5, $4, annot $1) }
+                    { Unless ($2, $4, $5, annot $1) }
                 | K_WHILE
                     primary_e2
                     expr_value do_
                     primary_e3
                     compstmt K_END
-                    { new_while $6 $3 false ~annot:(annot $1) }
+                    { While ($3, $6, annot $1) }
                 | K_UNTIL
                     primary_e2
                     expr_value do_
                     primary_e3
                     compstmt K_END
-                    { new_until $6 $3 false ~annot:(annot $1) }
+                    { Until ($3, $6, annot $1) }
                 | K_CASE expr_value opt_terms case_body opt_else K_END
                     { new_case $2 $4 $5 ~annot:(annot $1) }
                 | K_CASE opt_terms case_body opt_else K_END
@@ -694,7 +692,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     expr_value do_
                     primary_e3
                     compstmt K_END
-                    { For ($5, $2, $8, annot $1) }
+                    { For ($2, $5, $8, annot $1) }
                 | K_CLASS
                     cpath superclass
                     primary_e4
@@ -782,10 +780,10 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
          if_tail: opt_else
                     { $1 }
                 | K_ELSIF expr_value then_ compstmt if_tail
-                    { If ($2, $4, $5, annot $1) }
+                    { [expr_stmt (If ($2, $4, $5, annot $1))] }
 
         opt_else: none
-                    { $1 }
+                    { [] }
                 | K_ELSE compstmt
                     { $2 }
 
@@ -876,8 +874,9 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
 
       opt_rescue: K_RESCUE exc_list exc_var then_ compstmt opt_rescue
                     { let body =
-                        if $3 = Empty
-                        then append_to_block (node_assign $3 (Identifier (Id_global "!", dummy_annot))) $5
+                        if $3 = Empty then
+                          let assign = node_assign $3 (Identifier (Id_global "!", dummy_annot)) in
+                            (expr_stmt assign) :: $5
                         else $5
                       in ($2, body) :: $6 }
                 | none
@@ -898,7 +897,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
       opt_ensure: K_ENSURE compstmt
                     { $2 }
                 | none
-                    { $1 }
+                    { [] }
 
          literal: numeric
                     { let lit_val =
@@ -978,7 +977,7 @@ xstring_contents: none
                     { state.lex_strterm <- $2;
                       Stack_state.lexpop state.cond_stack;
                       Stack_state.lexpop state.cmdarg_stack;
-                      Str_interpol $3, $1 }
+                      Str_interpol (Block ($3, dummy_annot)), $1 }
 
 string_content_e1: { let ret = state.lex_strterm in
                        state.lex_strterm <- None;

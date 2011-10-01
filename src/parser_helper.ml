@@ -28,30 +28,6 @@ module Make (A : Ast.Annot) = struct
     (* TODO error check *)
     ary
 
-  let block_append head tail =
-    match head, tail with
-    | _, Empty -> head
-    | Empty, _
-        (* Do not drop literals.
-           | Literal _, _
-           | Str _, _ -> tail
-        *)
-    | _, _ ->
-        match head with
-        | Block (body, a) ->
-            Block (body @ [tail], a)
-        | head ->
-            Block ([head; tail], dummy_annot)
-
-  let append_to_block head tail =
-    match head, tail with
-    | Empty, _ -> tail
-    | _, Empty -> head
-    | Block (body, a), _ ->
-        Block (body @ [tail], a)
-    | _, _ ->
-        Block ([head; tail], dummy_annot)
-
   let list_append list item =
     match list with
     | Array (ary, a) ->
@@ -197,15 +173,6 @@ module Make (A : Ast.Annot) = struct
     | _ ->
         new_call ary "[]" args ~annot
 
-  let new_body ?(annot=dummy_annot) body rescues els ensure =
-    if rescues <> [] || els <> Empty || ensure <> Empty
-    then Begin ({ body = body;
-                  body_rescues = rescues;
-                  body_else = els;
-                  body_ensure = ensure },
-                annot)
-    else body
-
   let new_case ?(annot=dummy_annot) expr whens els =
     Case ({ case_expr = expr;
             case_whens = whens;
@@ -259,26 +226,5 @@ module Make (A : Ast.Annot) = struct
   let new_sclass ?(annot=dummy_annot) recv body =
     Sclass (recv, body, annot)
 
-  let new_while ?(annot=dummy_annot) block expr pre =
-    let block, pre =
-      match block with
-      | Begin ({ body = body;
-                 body_rescues = [];
-                 body_else = _;
-                 body_ensure = Empty },
-               _) -> body, pre
-      | _ -> block, false
-    in
-      match expr with
-      | Not (e, _) ->
-          Until (e, block, pre, annot)
-      | _ ->
-          While (expr, block, pre, annot)
-
-  let new_until ?(annot=dummy_annot) block expr pre =
-    let expr =
-      match expr with
-      | Not (e, _) -> e
-      | _ -> Not (expr, dummy_annot)
-    in new_while block expr pre ~annot
+  let expr_stmt expr = Expr (expr, dummy_annot)
 end
