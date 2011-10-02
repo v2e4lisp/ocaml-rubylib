@@ -40,11 +40,7 @@ module Make (A : Ast.Annot) = struct
     args
 
   let new_call ?(block=None) ?(annot=dummy_annot) recv id args =
-    let call = Call (recv, id, args, annot) in
-      match block with
-      | None -> call
-      | Some blk ->
-          Iter (call, fst blk, snd blk, annot)
+    Call (recv, id, args, block, annot)
 
   let new_fcall ?(block=None) ?(annot=dummy_annot) id args =
     new_call Empty id args ~block ~annot
@@ -117,11 +113,11 @@ module Make (A : Ast.Annot) = struct
   let get_match_node ?(annot=dummy_annot) lhs rhs =
     match lhs, rhs with
     | Literal (Lit_regexp _, _), _ ->
-        Call (lhs, "=~", [Arg_value rhs], annot)
+        Call (lhs, "=~", [Arg_value rhs], None, annot)
     | _, Literal (Lit_regexp _, _) ->
-        Call (rhs, "=~", [Arg_value lhs], annot)
+        Call (rhs, "=~", [Arg_value lhs], None, annot)
     | _, _ ->
-        Call (lhs, "=~", [Arg_value rhs], annot)
+        Call (lhs, "=~", [Arg_value rhs], None, annot)
 
   let new_aref ?(annot=dummy_annot) ary args =
     match ary with

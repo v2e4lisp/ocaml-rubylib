@@ -271,36 +271,40 @@ and pp_expr fmt = function
   | Redo _ -> pp_string fmt "redo"
   | Retry _ -> pp_string fmt "retry"
 
-  | Call (recv, id, args, _) ->
+  | Call (recv, id, args, blk, _) ->
+      fprintf fmt "@[<2>";
       begin match id with
-       | "|" | "^" | "&" | "<=>" | "=="
-       | "===" | "=~" | ">" | ">=" | "<"
-       | "<=" | "<<" | ">>" | "+" | "-"
-       | "*" | "/" | "%" | "**" when List.length args = 1 ->
-           begin match List.hd args with
-           | Arg_value rhs -> pp_binop fmt recv id rhs
-           | _ -> failwith "invalid binop"
-           end
-       | "~" | "+@" | "-@" when args = [] ->
-           pp_char fmt id.[0];
-           pp_expr fmt recv
-       | "[]" ->
-           fprintf fmt "%a[%a]"
-             pp_expr recv
-             pp_arg_list args
-       | _ ->
-           if recv <> Empty then
-             fprintf fmt "%a." pp_expr recv;
-           pp_string fmt id;
-           if args <> [] then
-             fprintf fmt "(%a)" pp_arg_list args
+      | "|" | "^" | "&" | "<=>" | "=="
+      | "===" | "=~" | ">" | ">=" | "<"
+      | "<=" | "<<" | ">>" | "+" | "-"
+      | "*" | "/" | "%" | "**" when List.length args = 1 ->
+          begin match List.hd args with
+          | Arg_value rhs -> pp_binop fmt recv id rhs
+          | _ -> failwith "invalid binop"
+          end
+      | "~" | "+@" | "-@" when args = [] ->
+          pp_char fmt id.[0];
+          pp_expr fmt recv
+      | "[]" ->
+          fprintf fmt "%a[%a]"
+            pp_expr recv
+            pp_arg_list args
+      | _ ->
+          if recv <> Empty then
+            fprintf fmt "%a." pp_expr recv;
+          pp_string fmt id;
+          if args <> [] then
+            fprintf fmt "(%a)" pp_arg_list args
+      end;
+      begin match blk with
+      | Some { blk_vars = vars; blk_body = body } ->
+          pp_string fmt " {";
+          if vars <> [] then
+            fprintf fmt "|%a|" pp_lhs_list vars;
+          fprintf fmt "@\n%a@]@\n}" pp_body body
+      | None ->
+          fprintf fmt "@]"
       end
-
-  | Iter (call, lhs, body, _) ->
-      fprintf fmt "@[<2>%a {" pp_expr call;
-      if lhs <> [] then
-        fprintf fmt "|%a|" pp_lhs_list lhs;
-      fprintf fmt "@\n%a@]@\n}" pp_body body
 
   | Return (args, _) ->
       fprintf fmt "return %a" pp_arg_list args

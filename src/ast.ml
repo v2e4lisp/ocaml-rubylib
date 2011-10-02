@@ -72,6 +72,11 @@ and 'a body_stmt = {
   body_ensure : 'a stmt list
 }
 
+and 'a block = {
+  blk_vars : 'a lhs list;
+  blk_body : 'a stmt list
+}
+
 and 'a stmt =
   | Alias of string * string * 'a
   | Undef of string list * 'a
@@ -118,8 +123,7 @@ and 'a expr =
   | Redo of 'a
   | Retry of 'a
 
-  | Call of 'a expr * string * 'a argument list * 'a
-  | Iter of 'a expr * 'a lhs list * 'a stmt list * 'a
+  | Call of 'a expr * string * 'a argument list * 'a block option * 'a
   | Return of 'a argument list * 'a
   | Yield of 'a argument list * 'a
   | Super of 'a argument list option * 'a
@@ -191,8 +195,7 @@ let annot_of_expr = function
   | Next (_, a)
   | Redo (a)
   | Retry (a)
-  | Call (_, _, _, a)
-  | Iter (_, _, _, a)
+  | Call (_, _, _, _, a)
   | Return (_, a)
   | Yield (_, a)
   | Super (_, a)

@@ -179,9 +179,9 @@
                     cmd_brace_block_e1
                     opt_block_var
                     compstmt RCURLY
-                    { let blk = $3, $4 in
+                    { let block = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env ;
-                        blk }
+                        block }
 cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                       (* TODO result = self.lexer.lineno*)
                       ()}
@@ -665,7 +665,10 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | method_call
                     { $1 }
                 | method_call brace_block
-                    { Iter ($1, fst $2, snd $2, annot_of_expr $1) }
+                    { match $1 with
+                      | Call (recv, id, args, _, annot) ->
+                          Call (recv, id, args, Some $2, annot)
+                      | _ -> failwith "invalid method_call" }
                 | K_IF expr_value then_ compstmt if_tail K_END
                     { If ($2, $4, $5, annot $1) }
                 | K_UNLESS expr_value then_ compstmt opt_else K_END
@@ -847,16 +850,16 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     brace_block_e1
                     opt_block_var
                     compstmt RCURLY
-                    { let blk = $3, $4 in
+                    { let block = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env;
-                        blk }
+                        block }
                 | K_DO
                     brace_block_e1
                     opt_block_var
                     compstmt K_END
-                    { let blk = $3, $4 in
+                    { let block = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env;
-                        blk }
+                        block }
   brace_block_e1: { Env.extend ~dyn:true state.env }
 
        case_body: K_WHEN
