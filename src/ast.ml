@@ -108,14 +108,9 @@ and 'a expr =
   | Colon2 of 'a expr * string * 'a
   | Colon3 of string * 'a
 
-  | Cdecl of string * 'a expr * 'a
-  | Lasgn of string * 'a expr * 'a
-  | Dasgn of string * 'a expr * 'a
-  | Iasgn of string * 'a expr * 'a
-  | Cvasgn of string * 'a expr * 'a
-  | Cvdecl of string * 'a expr * 'a
-  | Gasgn of string * 'a expr * 'a
-  | Masgn of 'a expr * 'a expr * 'a
+  | Declare of identifier * 'a expr * 'a
+  | Assign of identifier * 'a expr * 'a
+  | Massign of 'a expr * 'a expr * 'a
 
   | Op_asgn1 of 'a expr * 'a expr list * string * 'a expr * 'a
   | Op_asgn2 of 'a expr * string * string * 'a expr * 'a
@@ -132,6 +127,31 @@ and 'a expr =
 
   | Begin of 'a body_stmt * 'a
   | Block of 'a stmt list * 'a
+
+let string_of_identifier = function
+  | Id_local (id)       -> id
+  | Id_dynamic (id)     -> id
+  | Id_instance (id)    -> Printf.sprintf "@%s" id
+  | Id_class (id)       -> Printf.sprintf "@@%s" id
+  | Id_global (id)      -> Printf.sprintf "$%s" id
+  | Id_constant (id)    -> id
+  | Id_pseudo Pid_nil   -> "nil"
+  | Id_pseudo Pid_true  -> "true"
+  | Id_pseudo Pid_false -> "false"
+  | Id_pseudo Pid_self  -> "self"
+
+let annot_of_stmt = function
+  | Alias (_, _, a)
+  | Undef (_, a)
+  | If_mod (_, _, a)
+  | Unless_mod (_, _, a)
+  | While_mod (_, _, a)
+  | Until_mod (_, _, a)
+  | Rescue_mod (_, _, a)
+  | Pre_exec (_, a)
+  | Post_exec (_, a)
+  | Expr (_, a)
+    -> a
 
 let annot_of_expr = function
   | Empty -> raise Not_found
@@ -170,14 +190,9 @@ let annot_of_expr = function
   | Const (_, a)
   | Colon2 (_, _, a)
   | Colon3 (_, a)
-  | Cdecl (_, _, a)
-  | Lasgn (_, _, a)
-  | Dasgn (_, _, a)
-  | Iasgn (_, _, a)
-  | Cvasgn (_, _, a)
-  | Cvdecl (_, _, a)
-  | Gasgn (_, _, a)
-  | Masgn (_, _, a)
+  | Declare (_, _, a)
+  | Assign (_, _, a)
+  | Massign (_, _, a)
   | Op_asgn1 (_, _, _, _, a)
   | Op_asgn2 (_, _, _, _, a)
   | Op_asgn (_, _, _, _, a)

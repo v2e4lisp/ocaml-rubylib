@@ -117,44 +117,39 @@ module Make (A : Ast.Annot) = struct
           Env.add state.env id `Lvar;
         if Rid.is_class_var id then
           if state.in_def > 0 || state.in_single > 0
-          then Cvasgn (id, value, annot)
-          else Cvdecl (id, value, annot)
+          then Assign (Id_class id, value, annot)
+          else Declare (Id_class id, value, annot)
         else if Rid.is_instance_var id then
-          Iasgn (id, value, annot)
+          Assign (Id_instance id, value, annot)
         else if Rid.is_global_var id then
-          Gasgn (id, value, annot)
+          Assign (Id_global id, value, annot)
         else if Rid.is_const id then
-          Cdecl (id, value, annot)
+          Declare (Id_constant id, value, annot)
         else
           match Env.find state.env id with
           | Some `Lvar ->
-              Lasgn (id, value, annot)
+              Assign (Id_local id, value, annot)
           | Some `Dvar ->
               if Env.find_in_current state.env id = Some `Dvar then
-                Lasgn (id, value, annot)
+                Assign (Id_local id, value, annot)
               else begin
                 Env.use state.env id;
-                Lasgn (id, value, annot)
+                Assign (Id_local id, value, annot)
               end
           | None ->
-              Lasgn (id, value, annot)
+              Assign (Id_local id, value, annot)
 
   let node_assign lhs rhs =
     match lhs with
     | Empty -> lhs
-    | Gasgn (id, _, a) -> Gasgn (id, rhs, a)
-    | Iasgn (id, _, a) -> Iasgn (id, rhs, a)
-    | Lasgn (id, _, a) -> Lasgn (id, rhs, a)
-    | Dasgn (id, _, a) -> Dasgn (id, rhs, a)
-    | Masgn (lhs, _, a) -> Masgn (lhs, rhs, a)
-    | Cdecl (id, _, a) -> Cdecl (id, rhs, a)
-    | Cvdecl (id, _, a) -> Cvdecl (id, rhs, a)
-    | Cvasgn (id, _, a) -> Cvasgn (id, rhs, a)
+    | Declare (id, _, a) -> Declare (id, rhs, a)
+    | Assign (id, _, a) -> Assign (id, rhs, a)
+    | Massign (id, _, a) -> Massign (id, rhs, a)
     | Attrasgn (recv, id, args, a) ->
         Attrasgn (recv, id, (args @ [rhs]), a)
     | Call (recv, id, args, a) ->
         Call (recv, id, (args @ [rhs]), a)
-    | Const (id, a) -> Cdecl (id, rhs, a)
+    | Const (id, a) -> Declare (Id_constant id, rhs, a)
     | _ -> error "unknown lhs"
 
   let get_match_node ?(annot=dummy_annot) lhs rhs =
@@ -185,9 +180,9 @@ module Make (A : Ast.Annot) = struct
   let new_masgn ?(wrap=false) ?(annot=dummy_annot) mlhs mrhs =
     match mlhs with
     | [_]
-      -> Masgn (Array (mlhs, dummy_annot), Array ([mrhs], dummy_annot), annot)
+      -> Massign (Array (mlhs, dummy_annot), Array ([mrhs], dummy_annot), annot)
     | _
-      -> Masgn (Array (mlhs, dummy_annot), new_call mrhs "to_ary" [], annot)
+      -> Massign (Array (mlhs, dummy_annot), new_call mrhs "to_ary" [], annot)
 
   let new_module ?(annot=dummy_annot) path body =
     Module (path, body, annot)
@@ -195,23 +190,17 @@ module Make (A : Ast.Annot) = struct
   let new_op_asgn ?(annot=dummy_annot) lhs op arg =
     let set_asgn_value value =
       match lhs with
-      | Cvasgn (id, _, a) -> Cvasgn (id, value, a)
-      | Cvdecl (id, _, a) -> Cvdecl (id, value, a)
-      | Iasgn (id, _, a)  -> Iasgn (id, value, a)
-      | Gasgn (id, _, a)  -> Gasgn (id, value, a)
-      | Cdecl (id, _, a)  -> Cdecl (id, value, a)
-      | Lasgn (id, _, a)  -> Lasgn (id, value, a)
+      | Declare (id, _, a) -> Declare (id, value, a)
+      | Assign (id, _, a) -> Assign (id, value, a)
+      | Massign (id, _, a) -> Massign (id, value, a)
       | _ -> failwith "new_op_asgn: can't replace"
     in
     let id = match lhs with
-      | Cvasgn (id, _, _) -> id
-      | Cvdecl (id, _, _) -> id
-      | Iasgn (id, _, _)  -> id
-      | Gasgn (id, _, _)  -> id
-      | Cdecl (id, _, _)  -> id
-      | Lasgn (id, _, _)  -> id
+      | Declare (id, _, _) -> id
+      | Assign (id, _, _) -> id
       | _ -> failwith "new_op_asgn: can't obtain id"
     in
+    let id = string_of_identifier id in
       match op with
       | "||" -> Op_asgn_or (gettable id ~annot, set_asgn_value arg, annot)
       | "&&" -> Op_asgn_and (gettable id ~annot, set_asgn_value arg, annot)
@@ -222,9 +211,6 @@ module Make (A : Ast.Annot) = struct
   let new_regexp ?(annot=dummy_annot) expr options =
     (* TODO *)
     Empty
-
-  let new_sclass ?(annot=dummy_annot) recv body =
-    Sclass (recv, body, annot)
 
   let expr_stmt expr = Expr (expr, dummy_annot)
 end

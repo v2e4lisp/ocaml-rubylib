@@ -66,8 +66,10 @@ and pp_body_stmt fmt { body = body;
          fprintf fmt " %a" pp_expr_list types;
        fprintf fmt "@\n%a@]@\n" pp_body resbody)
     rescues;
-  fprintf fmt "@[<2>else@\n%a@]@\n" pp_body elsbody;
-  fprintf fmt "@[<2>ensure@\n%a" pp_body ensbody;
+  if elsbody <> [] then
+    fprintf fmt "@[<2>else@\n%a@]@\n" pp_body elsbody;
+  if ensbody <> [] then
+    fprintf fmt "@[<2>ensure@\n%a" pp_body ensbody;
 
 and pp_stmt fmt = function
   | Alias (new_id, old_id, _) ->
@@ -280,19 +282,12 @@ and pp_expr fmt = function
   | Colon3 (id, _) ->
       fprintf fmt "::%s" id
 
-  | Cdecl (id, e, _)
-  | Lasgn (id, e, _)
-  | Dasgn (id, e, _)
-  | Iasgn (id, e, _)
-  | Cvasgn (id, e, _)
-  | Cvdecl (id, e, _)
-  | Gasgn (id, e, _) ->
-      pp_string fmt id;
-      if e <> Empty then
-        (* TODO *)
-        fprintf fmt " = %a" pp_expr e
-
-  | Masgn (lhs, rhs, _) ->
+  | Declare (id, expr, _)
+  | Assign (id, expr, _) ->
+      fprintf fmt "%s = %a"
+        (string_of_identifier id)
+        pp_expr expr
+  | Massign (lhs, rhs, _) ->
       pp_fixme fmt
 
   | Op_asgn1 (recv, args, op, e, _) ->

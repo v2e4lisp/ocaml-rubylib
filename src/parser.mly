@@ -131,7 +131,7 @@
                 | mlhs EQL arg_value
                     { expr_stmt (new_masgn $1 $3 ~annot:(annot $2)) }
                 | mlhs EQL mrhs
-                    { expr_stmt (Masgn (Array ($1, dummy_annot), Array ($3, dummy_annot), annot $2)) }
+                    { expr_stmt (Massign (Array ($1, dummy_annot), Array ($3, dummy_annot), annot $2)) }
                 | expr
                     { expr_stmt $1 }
          stmt_e1: { state.lex_state <- Expr_fname;
@@ -706,7 +706,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     term
                     primary_e6
                     bodystmt K_END
-                    { let ret = new_sclass $3 $7 ~annot:(annot $1) in
+                    { let ret = Sclass ($3, $7, annot $1) in
                         state.in_def <- $4;
                         state.in_single <- $6;
                         Env.unextend state.env;
