@@ -24,24 +24,6 @@ module Make (A : Ast.Annot) = struct
           Or (lhs, rhs, annot_of_expr lhs)
     in loop lhs rhs
 
-  let assoc_list ary =
-    (* TODO error check *)
-    ary
-
-  let list_append list item =
-    match list with
-    | Array (ary, a) ->
-        Array (ary @ [item], a)
-    | _ ->
-        Array ([list; item], dummy_annot)
-
-  let list_prepend item list =
-    match list with
-    | Array (ary, a) ->
-        Array (item :: ary, a)
-    | _ ->
-        Array ([item; list], dummy_annot)
-
   let literal_concat head tail =
     match head, tail with
     | Literal (Lit_string head_contents, annot),
@@ -49,13 +31,6 @@ module Make (A : Ast.Annot) = struct
         Literal (Lit_string (head_contents @ tail_contents), annot)
     | _, _ ->
         invalid_arg "head, tail"
-
-  let arg_concat args rest =
-    args @ [Splat (rest, annot_of_expr rest)]
-
-  let arg_blk_pass args = function
-    | Empty -> args
-    | blk -> args @ [blk]
 
   let formal_params norms opts rest block =
     norms @ opts @ rest @ block
@@ -93,21 +68,21 @@ module Make (A : Ast.Annot) = struct
           if Rid.is_class_var id then
             Identifier (Id_class (String.sub id 2 (length - 2)), annot)
           else if Rid.is_instance_var id then
-            Identifier (Id_instance (String.sub id 1 (length - 1)), annot)
+            Identifier (Id_inst (String.sub id 1 (length - 1)), annot)
           else if Rid.is_global_var id then
-            Identifier (Id_global (String.sub id 1 (length - 1)), annot)
+            Identifier (Id_glob (String.sub id 1 (length - 1)), annot)
           else if Rid.is_const id then
-            Identifier (Id_constant id, annot)
+            Identifier (Id_const (Cpath_name id), annot)
           else
             match Env.find state.env id with
             | Some `Lvar ->
                 Identifier (Id_local id, annot)
             | Some `Dvar ->
-                Identifier (Id_dynamic id, annot)
+                Identifier (Id_dyn id, annot)
             | None ->
                 new_vcall id ~annot
 
-  let assignable ?(annot=dummy_annot) id value =
+  let assignable ?(annot=dummy_annot) id =
     match id with
     | "nil" | "self" | "true" | "false"
     | "__FILE__" | "__LINE__" ->
@@ -117,49 +92,36 @@ module Make (A : Ast.Annot) = struct
           Env.add state.env id `Lvar;
         if Rid.is_class_var id then
           if state.in_def > 0 || state.in_single > 0
-          then Assign (Id_class id, value, annot)
-          else Declare (Id_class id, value, annot)
+          then Lhs_id (Id_class id)
+          else Lhs_decl (Id_class id)
         else if Rid.is_instance_var id then
-          Assign (Id_instance id, value, annot)
+          Lhs_id (Id_inst id)
         else if Rid.is_global_var id then
-          Assign (Id_global id, value, annot)
+          Lhs_id (Id_glob id)
         else if Rid.is_const id then
-          Declare (Id_constant id, value, annot)
+          Lhs_decl (Id_const (Cpath_name id))
         else
           match Env.find state.env id with
           | Some `Lvar ->
-              Assign (Id_local id, value, annot)
+              Lhs_id (Id_local id)
           | Some `Dvar ->
               if Env.find_in_current state.env id = Some `Dvar then
-                Assign (Id_local id, value, annot)
+                Lhs_id (Id_local id)
               else begin
                 Env.use state.env id;
-                Assign (Id_local id, value, annot)
+                Lhs_id (Id_local id)
               end
           | None ->
-              Assign (Id_local id, value, annot)
-
-  let node_assign lhs rhs =
-    match lhs with
-    | Empty -> lhs
-    | Declare (id, _, a) -> Declare (id, rhs, a)
-    | Assign (id, _, a) -> Assign (id, rhs, a)
-    | Massign (id, _, a) -> Massign (id, rhs, a)
-    | Attrasgn (recv, id, args, a) ->
-        Attrasgn (recv, id, (args @ [rhs]), a)
-    | Call (recv, id, args, a) ->
-        Call (recv, id, (args @ [rhs]), a)
-    | Const (id, a) -> Declare (Id_constant id, rhs, a)
-    | _ -> error "unknown lhs"
+              Lhs_id (Id_local id)
 
   let get_match_node ?(annot=dummy_annot) lhs rhs =
     match lhs, rhs with
     | Literal (Lit_regexp _, _), _ ->
-        Call (lhs, "=~", [rhs], annot)
+        Call (lhs, "=~", [Arg_value rhs], annot)
     | _, Literal (Lit_regexp _, _) ->
-        Call (rhs, "=~", [lhs], annot)
+        Call (rhs, "=~", [Arg_value lhs], annot)
     | _, _ ->
-        Call (lhs, "=~", [rhs], annot)
+        Call (lhs, "=~", [Arg_value rhs], annot)
 
   let new_aref ?(annot=dummy_annot) ary args =
     match ary with
@@ -174,39 +136,13 @@ module Make (A : Ast.Annot) = struct
             case_else = els },
           annot)
 
-  let new_class ?(annot=dummy_annot) path superclass body =
-    Class (path, superclass, body, annot)
-
-  let new_masgn ?(wrap=false) ?(annot=dummy_annot) mlhs mrhs =
-    match mlhs with
-    | [_]
-      -> Massign (Array (mlhs, dummy_annot), Array ([mrhs], dummy_annot), annot)
-    | _
-      -> Massign (Array (mlhs, dummy_annot), new_call mrhs "to_ary" [], annot)
-
-  let new_module ?(annot=dummy_annot) path body =
-    Module (path, body, annot)
-
   let new_op_asgn ?(annot=dummy_annot) lhs op arg =
-    let set_asgn_value value =
-      match lhs with
-      | Declare (id, _, a) -> Declare (id, value, a)
-      | Assign (id, _, a) -> Assign (id, value, a)
-      | Massign (id, _, a) -> Massign (id, value, a)
-      | _ -> failwith "new_op_asgn: can't replace"
-    in
-    let id = match lhs with
-      | Declare (id, _, _) -> id
-      | Assign (id, _, _) -> id
-      | _ -> failwith "new_op_asgn: can't obtain id"
-    in
-    let id = string_of_identifier id in
+    let lhs =
       match op with
-      | "||" -> Op_asgn_or (gettable id ~annot, set_asgn_value arg, annot)
-      | "&&" -> Op_asgn_and (gettable id ~annot, set_asgn_value arg, annot)
-      | _ ->
-          let call = new_call (gettable id ~annot) op [arg] ~annot in
-            set_asgn_value call
+      | "||" -> Lhs_or lhs
+      | "&&" -> Lhs_and lhs
+      | _    -> Lhs_op (lhs, op)
+    in Assign (lhs, arg, annot)
 
   let new_regexp ?(annot=dummy_annot) expr options =
     (* TODO *)

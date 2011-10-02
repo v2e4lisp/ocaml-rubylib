@@ -37,9 +37,17 @@ and pp_hash fmt = function
   | _ ->
       pp_fixme fmt
 
-and pp_binop fmt lhs op rhs =
-  fprintf fmt "(@[%a %s %a@])"
-    pp_expr lhs op pp_expr rhs
+and pp_id fmt = function
+  | Id_const cpath -> pp_cpath fmt cpath
+  | id -> pp_string fmt (string_of_identifier id)
+
+and pp_cpath fmt = function
+  | Cpath_name (name) ->
+      pp_string fmt name
+  | Cpath_rel (parent, name) ->
+      fprintf fmt "%a::%s" pp_expr parent name
+  | Cpath_glob (cpath) ->
+      fprintf fmt "::%a" pp_cpath cpath
 
 and pp_param fmt = function
   | Param_id id ->
@@ -54,6 +62,41 @@ and pp_param fmt = function
   | Param_block id ->
       fprintf fmt "&%s" id
 
+and pp_arg fmt = function
+  | Arg_value e ->
+      pp_expr fmt e
+  | Arg_splat e ->
+      fprintf fmt "*%a" pp_expr e
+  | Arg_hash assocs ->
+      pp_hash fmt assocs
+  | Arg_block e ->
+      fprintf fmt "&%a" pp_expr e
+
+and pp_arg_list fmt = pp_list pp_arg fmt
+
+and pp_lhs fmt = function
+  | Lhs_id id
+  | Lhs_decl id ->
+      pp_id fmt id
+  | Lhs_dstr dstr ->
+      fprintf fmt "(%a)" (pp_list pp_lhs) dstr
+  | Lhs_rest rest ->
+      fprintf fmt "*%a" pp_lhs rest
+  | Lhs_star ->
+      pp_string fmt "*"
+  | Lhs_attr (recv, id) ->
+      fprintf fmt "%a.%s" pp_expr recv id
+  | Lhs_aref (recv, args) ->
+      fprintf fmt "%a[%a]"
+        pp_expr recv
+        pp_arg_list args
+  | Lhs_op (lhs, _)
+  | Lhs_or lhs
+  | Lhs_and lhs ->
+      pp_lhs fmt lhs
+
+and pp_lhs_list fmt = pp_list pp_lhs fmt
+
 and pp_body_stmt fmt { body = body;
                        body_rescues = rescues;
                        body_else = elsbody;
@@ -63,7 +106,7 @@ and pp_body_stmt fmt { body = body;
     (fun (types, resbody) ->
        fprintf fmt "@[<2>rescue";
        if types <> [] then
-         fprintf fmt " %a" pp_expr_list types;
+         fprintf fmt " %a" pp_arg_list types;
        fprintf fmt "@\n%a@]@\n" pp_body resbody)
     rescues;
   if elsbody <> [] then
@@ -117,6 +160,10 @@ and pp_body fmt = function
         pp_stmt x
         pp_body xs
 
+and pp_binop fmt lhs op rhs =
+  fprintf fmt "(@[%a %s %a@])"
+    pp_expr lhs op pp_expr rhs
+
 and pp_expr fmt = function
   | Empty (_) -> ()
 
@@ -137,25 +184,22 @@ and pp_expr fmt = function
   | Identifier (id, _) ->
       begin match id with
       | Id_local id         -> pp_string fmt id
-      | Id_dynamic id       -> pp_string fmt id
-      | Id_instance id      -> fprintf fmt "@%s" id
+      | Id_dyn id           -> pp_string fmt id
+      | Id_inst id          -> fprintf fmt "@%s" id
       | Id_class id         -> fprintf fmt "@@%s" id
-      | Id_global id        -> fprintf fmt "$%s" id
-      | Id_constant id      -> pp_string fmt id
+      | Id_glob id          -> fprintf fmt "$%s" id
+      | Id_const cpath      -> pp_cpath fmt cpath
       | Id_pseudo Pid_nil   -> pp_string fmt "nil"
       | Id_pseudo Pid_true  -> pp_string fmt "true"
       | Id_pseudo Pid_false -> pp_string fmt "false"
       | Id_pseudo Pid_self  -> pp_string fmt "self"
       end
 
-  | Array (es, _) ->
-      fprintf fmt "[@[%a]@]" pp_expr_list es
+  | Array (args, _) ->
+      fprintf fmt "[@[%a]@]" pp_arg_list args
 
-  | Splat (e, _) ->
-      fprintf fmt "*%a" pp_expr e
-
-  | Svalue (es, _) ->
-      pp_expr_list fmt es
+  | Svalue (args, _) ->
+      pp_arg_list fmt args
 
   | Hash (hash, _) ->
       fprintf fmt "{%a}" pp_hash hash
@@ -215,15 +259,15 @@ and pp_expr fmt = function
       List.iter
         (fun (guards, whenbody) ->
            fprintf fmt "@[<2>when %a@\n%a@]@\n"
-             pp_expr_list guards
+             pp_arg_list guards
              pp_body whenbody)
         whens;
       fprintf fmt "@[<2>else@\n%a@]@\n" pp_body elsbody;
       pp_string fmt "end"
   | Break (args, _) ->
-      fprintf fmt "break %a" pp_expr_list args
+      fprintf fmt "break %a" pp_arg_list args
   | Next (args, _) ->
-      fprintf fmt "next %a" pp_expr_list args
+      fprintf fmt "next %a" pp_arg_list args
   | Redo _ -> pp_string fmt "redo"
   | Retry _ -> pp_string fmt "retry"
 
@@ -233,97 +277,54 @@ and pp_expr fmt = function
        | "===" | "=~" | ">" | ">=" | "<"
        | "<=" | "<<" | ">>" | "+" | "-"
        | "*" | "/" | "%" | "**" when List.length args = 1 ->
-           pp_binop fmt recv id (List.hd args)
+           begin match List.hd args with
+           | Arg_value rhs -> pp_binop fmt recv id rhs
+           | _ -> failwith "invalid binop"
+           end
        | "~" | "+@" | "-@" when args = [] ->
            pp_char fmt id.[0];
            pp_expr fmt recv
        | "[]" ->
            fprintf fmt "%a[%a]"
              pp_expr recv
-             pp_expr_list args
+             pp_arg_list args
        | _ ->
            if recv <> Empty then
              fprintf fmt "%a." pp_expr recv;
            pp_string fmt id;
            if args <> [] then
-             fprintf fmt "(%a)" pp_expr_list args
+             fprintf fmt "(%a)" pp_arg_list args
       end
 
-  | Iter (call, args, body, _) ->
+  | Iter (call, lhs, body, _) ->
       fprintf fmt "@[<2>%a {" pp_expr call;
-      if args <> [] then
-        fprintf fmt "|%a|" pp_expr_list args;
+      if lhs <> [] then
+        fprintf fmt "|%a|" pp_lhs_list lhs;
       fprintf fmt "@\n%a@]@\n}" pp_body body
 
-  | Block_pass (e, _) ->
-      pp_char fmt '&';
-      pp_expr fmt e
-
   | Return (args, _) ->
-      fprintf fmt "return %a" pp_expr_list args
+      fprintf fmt "return %a" pp_arg_list args
 
   | Yield (args, _) ->
-      fprintf fmt "yield %a" pp_expr_list args
+      fprintf fmt "yield %a" pp_arg_list args
 
-  | Super (args, _) ->
-      fprintf fmt "yield(%a)" pp_expr_list args
-
-  | Zsuper _ ->
+  | Super (Some args, _) ->
+      fprintf fmt "super(%a)" pp_arg_list args
+  | Super (None, _) ->
       pp_string fmt "super"
 
-  | Const (id, _) ->
-      pp_string fmt id
-
-  | Colon2 (path, id, _) ->
-      if path <> Empty then
-        fprintf fmt "%a::" pp_expr path;
-      pp_string fmt id
-
-  | Colon3 (id, _) ->
-      fprintf fmt "::%s" id
-
-  | Declare (id, expr, _)
-  | Assign (id, expr, _) ->
-      fprintf fmt "%s = %a"
-        (string_of_identifier id)
+  | Assign (lhs, expr, _) ->
+      fprintf fmt "%a %s= %a"
+        pp_lhs lhs
+        (match lhs with
+         | Lhs_op (_, op) -> op
+         | Lhs_or _       -> "||"
+         | Lhs_and _      -> "&&"
+         | _              -> "")
         pp_expr expr
-  | Massign (lhs, rhs, _) ->
-      pp_fixme fmt
 
-  | Op_asgn1 (recv, args, op, e, _) ->
-      fprintf fmt "%a[%a] %s= %a"
-        pp_expr recv
-        pp_expr_list args
-        op
-        pp_expr e
-
-  | Op_asgn2 (recv, id, op, e, _) ->
-      fprintf fmt "%a.%s %s= %a"
-        pp_expr recv
-        id op
-        pp_expr e
-
-  | Op_asgn (recv, e, id, op, _) ->
-      fprintf fmt "%a::%s %s= %a"
-        pp_expr recv
-        id op
-        pp_expr e
-
-  | Op_asgn_or (recv, e, _) ->
-      fprintf fmt "%a ||= %a"
-        pp_expr recv
-        pp_expr e
-
-  | Op_asgn_and (recv, e, _) ->
-      fprintf fmt "%a &&= %a"
-        pp_expr recv
-        pp_expr e
-
-  | Attrasgn (e, id, es, _) ->
-      pp_fixme fmt
-
-  | Class (path, super, body, _) ->
-      fprintf fmt "@[<2>class %a" pp_expr path;
+  | Class (cpath, super, body, _) ->
+      fprintf fmt "@[<2>class %a" pp_cpath cpath;
       if super <> Empty then
         fprintf fmt " < %a" pp_expr super;
       fprintf fmt "@\n%a@]@\nend" pp_body_stmt body
@@ -333,9 +334,9 @@ and pp_expr fmt = function
         pp_expr recv
         pp_body_stmt body
 
-  | Module (path, body, _) ->
+  | Module (cpath, body, _) ->
       fprintf fmt "@[<2>module %a@\n%a@]@\nend"
-        pp_expr path
+        pp_cpath cpath
         pp_body_stmt body
 
   | Defn (id, params, body, _) ->
