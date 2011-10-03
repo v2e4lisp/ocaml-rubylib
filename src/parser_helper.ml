@@ -4,10 +4,6 @@ module Make (A : Ast.Annot) = struct
   open Logging
 
   let dummy_annot = A.of_pos dummy_pos
-  let annot_of_expr expr =
-    if expr = Empty
-    then dummy_annot
-    else annot_of_expr expr
 
   let yyerror = error
 
@@ -40,13 +36,13 @@ module Make (A : Ast.Annot) = struct
     args
 
   let new_call ?(block=None) ?(annot=dummy_annot) recv id args =
-    Call (recv, id, args, block, annot)
+    Call (Some recv, id, args, block, annot)
 
   let new_fcall ?(block=None) ?(annot=dummy_annot) id args =
-    new_call Empty id args ~block ~annot
+    Call (None, id, args, block, annot)
 
   let new_vcall ?(annot=dummy_annot) id =
-    new_call Empty id [] ~annot
+    Call (None, id, [], None, annot)
 
   let new_yield ?(annot=dummy_annot) args =
     (* TODO error "Block argument should not be given." *)
@@ -113,11 +109,11 @@ module Make (A : Ast.Annot) = struct
   let get_match_node ?(annot=dummy_annot) lhs rhs =
     match lhs, rhs with
     | Literal (Lit_regexp _, _), _ ->
-        Call (lhs, "=~", [Arg_value rhs], None, annot)
+        new_call lhs "=~" [Arg_value rhs] ~annot:annot
     | _, Literal (Lit_regexp _, _) ->
-        Call (rhs, "=~", [Arg_value lhs], None, annot)
+        new_call rhs "=~" [Arg_value lhs] ~annot:annot
     | _, _ ->
-        Call (lhs, "=~", [Arg_value rhs], None, annot)
+        new_call lhs "=~" [Arg_value rhs] ~annot:annot
 
   let new_aref ?(annot=dummy_annot) ary args =
     match ary with
@@ -142,7 +138,7 @@ module Make (A : Ast.Annot) = struct
 
   let new_regexp ?(annot=dummy_annot) expr options =
     (* TODO *)
-    Empty
+    Literal (Lit_regexp ([], Reg_none), annot)
 
   let expr_stmt expr = Expr (expr, dummy_annot)
 end

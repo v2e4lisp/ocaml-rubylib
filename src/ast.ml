@@ -8,11 +8,15 @@ type 'a literal =
   | Lit_symbol of 'a string_contents list
   | Lit_integer of int
   | Lit_float of float
-  | Lit_regexp of 'a string_contents list * bool
+  | Lit_regexp of 'a string_contents list * regexp_flag
 
 and 'a string_contents =
   | Str_contents of string
   | Str_interpol of 'a expr
+
+and regexp_flag =
+  | Reg_none
+  | Reg_once
 
 and 'a identifier =
   | Id_local of string
@@ -59,8 +63,13 @@ and 'a lhs =
   | Lhs_or of 'a lhs
   | Lhs_and of 'a lhs
 
+and 'a block = {
+  blk_vars : 'a lhs list;
+  blk_body : 'a stmt list
+}
+
 and 'a case_stmt = {
-  case_expr : 'a expr;
+  case_expr : 'a expr option;
   case_whens : ('a argument list * 'a stmt list) list;
   case_else : 'a stmt list;
 }
@@ -70,11 +79,6 @@ and 'a body_stmt = {
   body_rescues : ('a argument list * 'a stmt list) list;
   body_else : 'a stmt list;
   body_ensure : 'a stmt list
-}
-
-and 'a block = {
-  blk_vars : 'a lhs list;
-  blk_body : 'a stmt list
 }
 
 and 'a stmt =
@@ -93,8 +97,6 @@ and 'a stmt =
   | Expr of 'a expr * 'a
 
 and 'a expr =
-  | Empty
-
   | Literal of 'a literal * 'a
   | Identifier of 'a identifier * 'a
 
@@ -123,14 +125,14 @@ and 'a expr =
   | Redo of 'a
   | Retry of 'a
 
-  | Call of 'a expr * string * 'a argument list * 'a block option * 'a
+  | Call of 'a expr option * string * 'a argument list * 'a block option * 'a
   | Return of 'a argument list * 'a
   | Yield of 'a argument list * 'a
-  | Super of 'a argument list option * 'a
+  | Super of 'a argument list option * 'a block option * 'a
 
   | Assign of 'a lhs * 'a expr * 'a
 
-  | Class of 'a cpath * 'a expr * 'a body_stmt * 'a
+  | Class of 'a cpath * 'a expr option * 'a body_stmt * 'a
   | Sclass of 'a expr * 'a body_stmt * 'a
   | Module of 'a cpath * 'a body_stmt * 'a
   | Defn of string * 'a parameter list * 'a body_stmt * 'a
@@ -170,7 +172,6 @@ let annot_of_stmt = function
     -> a
 
 let annot_of_expr = function
-  | Empty -> raise Not_found
   | Block (_, a)
   | Defined (_, a)
   | Literal (_, a)
@@ -198,7 +199,7 @@ let annot_of_expr = function
   | Call (_, _, _, _, a)
   | Return (_, a)
   | Yield (_, a)
-  | Super (_, a)
+  | Super (_, _, a)
   | Assign (_, _, a)
   | Class (_, _, _, a)
   | Sclass (_, _, a)

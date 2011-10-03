@@ -8,6 +8,10 @@ let pp_float = pp_print_float
 
 let pp_fixme fmt = pp_string fmt "fixme"
 
+let pp_opt pp fmt = function
+  | None -> ()
+  | Some x -> pp fmt x
+
 let rec pp_list ?(sep=", ") pp fmt = function
   | [] -> ()
   | [x] -> pp fmt x
@@ -95,24 +99,36 @@ and pp_lhs fmt = function
   | Lhs_and lhs ->
       pp_lhs fmt lhs
 
+and pp_do_block fmt { blk_vars = vars; blk_body = body } =
+  pp_string fmt " do";
+  if vars <> [] then
+    fprintf fmt "|%a|" pp_lhs_list vars;
+  fprintf fmt "@\n%a@]@\nend" pp_body body
+
+and pp_brace_block fmt { blk_vars = vars; blk_body = body } =
+  pp_string fmt " {";
+  if vars <> [] then
+    fprintf fmt "|%a|" pp_lhs_list vars;
+  fprintf fmt "@\n%a@]@\n}@[<2>" pp_body body
+
 and pp_lhs_list fmt = pp_list pp_lhs fmt
 
 and pp_body_stmt fmt { body = body;
                        body_rescues = rescues;
                        body_else = elsbody;
                        body_ensure = ensbody } =
-  fprintf fmt "%a@]@\n" pp_body body;
+  fprintf fmt "%a@]" pp_body body;
   List.iter
     (fun (types, resbody) ->
-       fprintf fmt "@[<2>rescue";
+       fprintf fmt "@\n@[<2>rescue";
        if types <> [] then
          fprintf fmt " %a" pp_arg_list types;
-       fprintf fmt "@\n%a@]@\n" pp_body resbody)
+       fprintf fmt "@\n%a@]" pp_body resbody)
     rescues;
   if elsbody <> [] then
-    fprintf fmt "@[<2>else@\n%a@]@\n" pp_body elsbody;
+    fprintf fmt "@\n@[<2>else@\n%a@]@\n" pp_body elsbody;
   if ensbody <> [] then
-    fprintf fmt "@[<2>ensure@\n%a" pp_body ensbody;
+    fprintf fmt "@\n@[<2>ensure@\n%a" pp_body ensbody;
 
 and pp_stmt fmt = function
   | Alias (new_id, old_id, _) ->
@@ -165,8 +181,6 @@ and pp_binop fmt lhs op rhs =
     pp_expr lhs op pp_expr rhs
 
 and pp_expr fmt = function
-  | Empty (_) -> ()
-
   | Literal (Lit_string contents, _) ->
       pp_string_contents fmt contents
   | Literal (Lit_xstring contents, _) ->
@@ -255,7 +269,7 @@ and pp_expr fmt = function
   | Case ({ case_expr = expr;
             case_whens = whens;
             case_else = elsbody }, _) ->
-      fprintf fmt "@[<2>case %a@]@\n" pp_expr expr;
+      fprintf fmt "@[<2>case %a@]@\n" (pp_opt pp_expr) expr;
       List.iter
         (fun (guards, whenbody) ->
            fprintf fmt "@[<2>when %a@\n%a@]@\n"
@@ -271,7 +285,7 @@ and pp_expr fmt = function
   | Redo _ -> pp_string fmt "redo"
   | Retry _ -> pp_string fmt "retry"
 
-  | Call (recv, id, args, blk, _) ->
+  | Call (Some recv, id, args, blk, _) ->
       fprintf fmt "@[<2>";
       begin match id with
       | "|" | "^" | "&" | "<=>" | "=="
@@ -290,21 +304,17 @@ and pp_expr fmt = function
             pp_expr recv
             pp_arg_list args
       | _ ->
-          if recv <> Empty then
-            fprintf fmt "%a." pp_expr recv;
-          pp_string fmt id;
-          if args <> [] then
-            fprintf fmt "(%a)" pp_arg_list args
+          fprintf fmt "%a.%s(%a)"
+            pp_expr recv
+            id
+            pp_arg_list args
       end;
-      begin match blk with
-      | Some { blk_vars = vars; blk_body = body } ->
-          pp_string fmt " {";
-          if vars <> [] then
-            fprintf fmt "|%a|" pp_lhs_list vars;
-          fprintf fmt "@\n%a@]@\n}" pp_body body
-      | None ->
-          fprintf fmt "@]"
-      end
+      fprintf fmt "%a@]" (pp_opt pp_brace_block) blk
+  | Call (None, id, args, blk, _) ->
+      fprintf fmt "@[<2>%s(%a)%a@]"
+        id
+        pp_arg_list args
+        (pp_opt pp_brace_block) blk
 
   | Return (args, _) ->
       fprintf fmt "return %a" pp_arg_list args
@@ -312,9 +322,11 @@ and pp_expr fmt = function
   | Yield (args, _) ->
       fprintf fmt "yield %a" pp_arg_list args
 
-  | Super (Some args, _) ->
-      fprintf fmt "super(%a)" pp_arg_list args
-  | Super (None, _) ->
+  | Super (Some args, blk, _) ->
+      fprintf fmt "@[super %a%a@]"
+        pp_arg_list args
+        (pp_opt pp_do_block) blk
+  | Super (None, _, _) ->
       pp_string fmt "super"
 
   | Assign (lhs, expr, _) ->
@@ -327,11 +339,15 @@ and pp_expr fmt = function
          | _              -> "")
         pp_expr expr
 
-  | Class (cpath, super, body, _) ->
-      fprintf fmt "@[<2>class %a" pp_cpath cpath;
-      if super <> Empty then
-        fprintf fmt " < %a" pp_expr super;
-      fprintf fmt "@\n%a@]@\nend" pp_body_stmt body
+  | Class (cpath, Some super, body, _) ->
+      fprintf fmt "@[<2>class %a < %a@\n%a@]@\nend"
+        pp_cpath cpath
+        pp_expr super
+        pp_body_stmt body
+  | Class (cpath, None, body, _) ->
+      fprintf fmt "@[<2>class %a@\n%a@]@\nend"
+        pp_cpath cpath
+        pp_body_stmt body
 
   | Sclass (recv, body, _) ->
       fprintf fmt "@[<2>class << %a@\n%a@]@\nend"

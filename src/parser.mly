@@ -179,9 +179,9 @@
                     cmd_brace_block_e1
                     opt_block_var
                     compstmt RCURLY
-                    { let block = { blk_vars = $3; blk_body = $4 } in
+                    { let blk = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env ;
-                        block }
+                        blk }
 cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                       (* TODO result = self.lexer.lineno*)
                       ()}
@@ -199,7 +199,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | primary_value COLON2 operation2 command_args cmd_brace_block
                     { new_call $1 (fst $3) $4 ~block:(Some $5) ~annot:(annot (snd $3)) }
                 | K_SUPER command_args
-                    { Super (Some $2, annot $1) }
+                    { Super (Some $2, None, annot $1) }
                 | K_YIELD command_args
                     { new_yield $2 ~annot:(annot $1) }
 
@@ -686,11 +686,11 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     compstmt K_END
                     { Until ($3, $6, annot $1) }
                 | K_CASE expr_value opt_terms case_body opt_else K_END
-                    { new_case $2 $4 $5 ~annot:(annot $1) }
+                    { new_case (Some $2) $4 $5 ~annot:(annot $1) }
                 | K_CASE opt_terms case_body opt_else K_END
-                    { new_case Empty $3 $4 ~annot:(annot $1) }
+                    { new_case None $3 $4 ~annot:(annot $1) }
                 | K_CASE opt_terms K_ELSE compstmt K_END
-                    { new_case Empty [] $4 ~annot:(annot $1) }
+                    { new_case None [] $4 ~annot:(annot $1) }
                 | K_FOR block_var K_IN
                     primary_e2
                     expr_value do_
@@ -811,22 +811,23 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     do_block_e1
                     opt_block_var
                     compstmt K_END
-                    { let blk = $3, $4 in
+                    { let blk = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env;
                         blk }
      do_block_e1: { Env.extend ~dyn:true state.env }
 
       block_call: command do_block
-                    {
-(* TODO
-                      raise SyntaxError, "Both block arg and actual block given." if
-                        val[0] && val[0][0] == :blockpass
-*)
-(* TODO
-                      result = val[1]
-                      result.insert 1, val[0]
-*)
-                      Empty }
+                    { (* TODO check for block argument *)
+                      match $1 with
+                      | Call (recv, id, args, _, annot) ->
+                          Call (recv, id, args, Some $2, annot)
+                      | Super (args, _, annot) ->
+                          Super (args, Some $2, annot)
+                      | Yield _ ->
+                          (* TODO warning *)
+                          $1
+                      | _ ->
+                          failwith "invalid block_call" }
                 | block_call DOT operation2 opt_paren_args
                     { new_call $1 (fst $3) $4 ~annot:(annot (snd $3)) }
                 | block_call COLON2 operation2 opt_paren_args
@@ -842,24 +843,24 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | primary_value COLON2 operation3
                     { new_call $1 (fst $3) [] ~annot:(annot (snd $3)) }
                 | K_SUPER paren_args
-                    { Super (Some $2, annot $1) }
+                    { Super (Some $2, None, annot $1) }
                 | K_SUPER
-                    { Super (None, annot $1) }
+                    { Super (None, None, annot $1) }
 
      brace_block: LCURLY
                     brace_block_e1
                     opt_block_var
                     compstmt RCURLY
-                    { let block = { blk_vars = $3; blk_body = $4 } in
+                    { let blk = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env;
-                        block }
+                        blk }
                 | K_DO
                     brace_block_e1
                     opt_block_var
                     compstmt K_END
-                    { let block = { blk_vars = $3; blk_body = $4 } in
+                    { let blk = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env;
-                        block }
+                        blk }
   brace_block_e1: { Env.extend ~dyn:true state.env }
 
        case_body: K_WHEN
@@ -1042,13 +1043,13 @@ string_content_e2: { let ret = state.lex_strterm in
                     { assignable (fst $1) ~annot:(annot (snd $1)) }
 
       superclass: term
-                    { Empty }
+                    { None }
                 | LT
                     superclass_e1
                     expr_value term
-                    { $3 }
+                    { Some $3 }
                 | error term
-                    { Empty }
+                    { None }
    superclass_e1:   { state.lex_state <- Expr_beg }
 
        f_arglist: LPAREN2 f_args opt_nl RPAREN
@@ -1179,7 +1180,7 @@ string_content_e2: { let ret = state.lex_strterm in
            terms: term       { () }
                 | terms SEMI { () }
 
-            none: { Empty }
+            none: { () }
 
  none_block_pass: { () }
 
