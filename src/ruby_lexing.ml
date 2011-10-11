@@ -89,4 +89,4 @@ let skip_spaces lexbuf =
   skip_char_while lexbuf
     (function
        | '\n' -> new_line lexbuf; true
-       | c -> Rchar.is_space c)
+       | c -> Ruby_char.is_space c)

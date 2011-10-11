@@ -48,26 +48,26 @@
                        real_id := id ^ "=";
                        result := IDENTIFIER (!real_id, pos)
                    | _ -> ());
-                if Rid.is_const !real_id then
+                if Ruby_id.is_const !real_id then
                   result := CONSTANT (!real_id, pos)
                 else
                   result := IDENTIFIER (!real_id, pos));
 
-           match Keyword.lex_info !real_id with
+           match Ruby_keyword.lex_info !real_id with
            | Some (k1, k2, ks) when state.lex_state <> Expr_dot ->
                let k =
                  let st = state.lex_state in
                    state.lex_state <- ks;
-                   if k1 = Keyword.K_do_cond then begin
+                   if k1 = Ruby_keyword.K_do_cond then begin
                      state.cmd_start <- true;
                      if Stack_state.is_in_state state.cond_stack
-                     then Keyword.K_do_cond
+                     then Ruby_keyword.K_do_cond
                      else if (Stack_state.is_in_state state.cmdarg_stack
                               && st <> Expr_cmdarg)
-                     then Keyword.K_do_block
+                     then Ruby_keyword.K_do_block
                      else if st = Expr_endarg
-                     then Keyword.K_do_block
-                     else Keyword.K_do
+                     then Ruby_keyword.K_do_block
+                     else Ruby_keyword.K_do
                    end else if st = Expr_beg then
                      k1
                    else begin
@@ -76,7 +76,7 @@
                      k2
                    end
                in
-                 result := Keyword.mk_token k ~pos
+                 result := Ruby_keyword.mk_token k ~pos
            | _ ->
                (match state.lex_state with
                 | Expr_beg | Expr_mid | Expr_dot
@@ -131,7 +131,7 @@ and token_case state = parse
   | '*' { let tok =
             if (is_argument state
                 && state.space_seen
-                && not (test_char lexbuf Rchar.is_space))
+                && not (test_char lexbuf Ruby_char.is_space))
             then begin
               warning "`*' interpreted as argument prefix";
               STAR (start_pos lexbuf)
@@ -246,7 +246,7 @@ and token_case state = parse
   | '&' { let tok =
             if (is_argument state
                 && state.space_seen
-                && not (test_char lexbuf Rchar.is_space))
+                && not (test_char lexbuf Ruby_char.is_space))
             then begin
               warning "`&' interpreted as argument prefix";
               AMPER (start_pos lexbuf)
@@ -289,13 +289,13 @@ and token_case state = parse
                 || state.lex_state = Expr_mid
                 || (is_argument state
                     && state.space_seen
-                    && not (test_char lexbuf Rchar.is_space)))
+                    && not (test_char lexbuf Ruby_char.is_space)))
             then begin
               if is_argument state then
                 arg_ambiguous state;
               state.lex_state <- Expr_beg;
 
-              if test_char lexbuf Rchar.is_digit then
+              if test_char lexbuf Ruby_char.is_digit then
                 if sign = '+' then
                   parse_number state lexbuf
                 else
@@ -312,7 +312,7 @@ and token_case state = parse
             DOT3 (start_pos lexbuf) }
   | ".." { state.lex_state <- Expr_beg;
            DOT2 (start_pos lexbuf) }
-  | '.' { if test_char lexbuf Rchar.is_digit then
+  | '.' { if test_char lexbuf Ruby_char.is_digit then
             error "no .<digit> floating literal anymore put 0 before dot";
           state.lex_state <- Expr_dot;
           DOT (start_pos lexbuf) }
@@ -344,7 +344,7 @@ and token_case state = parse
            end }
   | ':' { if (state.lex_state = Expr_end
               || state.lex_state = Expr_endarg
-              || test_char lexbuf Rchar.is_space)
+              || test_char lexbuf Ruby_char.is_space)
           then begin
             state.lex_state <- Expr_beg;
             COLON (start_pos lexbuf)
@@ -370,7 +370,7 @@ and token_case state = parse
             OP_ASGN ("/", start_pos lexbuf)
           end else if (is_argument state
                        && state.space_seen
-                       && not (test_char lexbuf Rchar.is_space))
+                       && not (test_char lexbuf Ruby_char.is_space))
           then begin
             arg_ambiguous state;
             state.lex_strterm <- Some (str_regexp, '/', '\000');
@@ -447,7 +447,7 @@ and token_case state = parse
             OP_ASGN ("%", start_pos lexbuf)
           end else if (is_argument state
                        && state.space_seen
-                       && not (test_char lexbuf Rchar.is_space))
+                       && not (test_char lexbuf Ruby_char.is_space))
           then parse_quote state lexbuf
           else begin
             fix_arg_lex_state state;
@@ -754,7 +754,7 @@ and heredoc_identifier' term id func state = parse
                  if func.str_func_escape then
                    Buffer.add_char state.str_buf '\\';
                  next (read_escape state lexbuf)
-               end else if func.str_func_qwords && Rchar.is_space c then begin
+               end else if func.str_func_qwords && Ruby_char.is_space c then begin
                  if c = '\n' then
                    new_line lexbuf;
                  next c
@@ -762,7 +762,7 @@ and heredoc_identifier' term id func state = parse
                  Buffer.add_char state.str_buf '\\';
                  next '\\'
                end)
-        else if func.str_func_qwords && Rchar.is_space c then
+        else if func.str_func_qwords && Ruby_char.is_space c then
           advance lexbuf ~-1
         else
           next c

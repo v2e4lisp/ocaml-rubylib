@@ -113,9 +113,9 @@
                         yyerror "END in method; use at_exit";
                       Post_exec ($3, annot $1) }
                 | lhs EQL command_call
-                    { expr_stmt (Assign ($1, $3, dummy_annot)) }
+                    { expr_stmt (Assign ($1, $3, Asgn_single, dummy_annot)) }
                 | mlhs EQL command_call
-                    { expr_stmt (Assign (Lhs_dstr $1, $3, annot $2)) }
+                    { expr_stmt (Assign (Lhs_dstr $1, $3, Asgn_multi, annot $2)) }
                 | var_lhs OP_ASGN command_call
                     { expr_stmt (new_op_asgn $1 (fst $2) $3 ~annot:(annot (snd $2))) }
                 | primary_value LB aref_args RBRACK OP_ASGN command_call
@@ -127,11 +127,11 @@
                 | primary_value COLON2 IDENTIFIER OP_ASGN command_call
                     { expr_stmt (new_op_asgn (Lhs_attr ($1, fst $3)) (fst $4) $5 ~annot:(annot (snd $4))) }
                 | lhs EQL mrhs
-                    { expr_stmt (Assign ($1, Svalue ($3, dummy_annot), dummy_annot)) }
+                    { expr_stmt (Assign ($1, Array ($3, dummy_annot), Asgn_svalue, dummy_annot)) }
                 | mlhs EQL arg_value
-                    { expr_stmt (Assign (Lhs_dstr $1, $3, annot $2)) }
+                    { expr_stmt (Assign (Lhs_dstr $1, $3, Asgn_multi, annot $2)) }
                 | mlhs EQL mrhs
-                    { expr_stmt (Assign (Lhs_dstr $1, Array ($3, dummy_annot), annot $2)) }
+                    { expr_stmt (Assign (Lhs_dstr $1, Array ($3, dummy_annot), Asgn_multi, annot $2)) }
                 | expr
                     { expr_stmt $1 }
          stmt_e1: { state.lex_state <- Expr_fname;
@@ -381,7 +381,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | K_RESCUE_MOD      { "rescue", $1 }
 
              arg: lhs EQL arg
-                    { Assign ($1, $3, dummy_annot) }
+                    { Assign ($1, $3, Asgn_single, dummy_annot) }
                 | lhs EQL arg K_RESCUE_MOD arg
                     { Assign ($1,
                               Begin ({ body = [expr_stmt $3];
@@ -389,7 +389,8 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                                        body_else = [];
                                        body_ensure = [] },
                                      annot $4),
-                             dummy_annot) }
+                              Asgn_single,
+                              dummy_annot) }
                 | var_lhs OP_ASGN arg
                     { new_op_asgn $1 (fst $2) $3 ~annot:(annot (snd $2)) }
                 | primary_value LB aref_args RBRACK OP_ASGN arg
@@ -883,7 +884,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { let body =
                         match $3 with
                         | Some lhs ->
-                            let asgn = Assign (lhs, (Identifier (Id_glob "!", dummy_annot)), dummy_annot) in
+                            let asgn = Assign (lhs, (Identifier (Id_glob "!", dummy_annot)), Asgn_single, dummy_annot) in
                               (expr_stmt asgn) :: $5
                         | None ->
                             $5

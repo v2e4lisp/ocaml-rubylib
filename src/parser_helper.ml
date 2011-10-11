@@ -57,13 +57,13 @@ module Make (A : Ast.Annot) = struct
     | "__LINE__" -> Literal (Lit_integer 42, annot)
     | id         ->
         let length = String.length id in
-          if Rid.is_class_var id then
+          if Ruby_id.is_class_var id then
             Identifier (Id_class (String.sub id 2 (length - 2)), annot)
-          else if Rid.is_instance_var id then
+          else if Ruby_id.is_instance_var id then
             Identifier (Id_inst (String.sub id 1 (length - 1)), annot)
-          else if Rid.is_global_var id then
+          else if Ruby_id.is_global_var id then
             Identifier (Id_glob (String.sub id 1 (length - 1)), annot)
-          else if Rid.is_const id then
+          else if Ruby_id.is_const id then
             Identifier (Id_const (Cpath_name id), annot)
           else
             match Env.find state.env id with
@@ -82,15 +82,15 @@ module Make (A : Ast.Annot) = struct
     | _ ->
         if Env.find state.env id = None then
           Env.add state.env id `Lvar;
-        if Rid.is_class_var id then
+        if Ruby_id.is_class_var id then
           if state.in_def > 0 || state.in_single > 0
           then Lhs_id (Id_class id)
           else Lhs_decl (Id_class id)
-        else if Rid.is_instance_var id then
+        else if Ruby_id.is_instance_var id then
           Lhs_id (Id_inst id)
-        else if Rid.is_global_var id then
+        else if Ruby_id.is_global_var id then
           Lhs_id (Id_glob id)
-        else if Rid.is_const id then
+        else if Ruby_id.is_const id then
           Lhs_decl (Id_const (Cpath_name id))
         else
           match Env.find state.env id with
@@ -134,7 +134,7 @@ module Make (A : Ast.Annot) = struct
       | "||" -> Lhs_or lhs
       | "&&" -> Lhs_and lhs
       | _    -> Lhs_op (lhs, op)
-    in Assign (lhs, arg, annot)
+    in Assign (lhs, arg, Asgn_single, annot)
 
   let new_regexp ?(annot=dummy_annot) expr options =
     (* TODO *)

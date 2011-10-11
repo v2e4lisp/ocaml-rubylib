@@ -212,9 +212,6 @@ and pp_expr fmt = function
   | Array (args, _) ->
       fprintf fmt "[@[%a]@]" pp_arg_list args
 
-  | Svalue (args, _) ->
-      pp_arg_list fmt args
-
   | Hash (hash, _) ->
       fprintf fmt "{%a}" pp_hash hash
 
@@ -329,7 +326,11 @@ and pp_expr fmt = function
   | Super (None, _, _) ->
       pp_string fmt "super"
 
-  | Assign (lhs, expr, _) ->
+  | Assign (lhs, Array (args, _), Asgn_svalue, _) ->
+      fprintf fmt "%a = %a"
+        pp_lhs lhs
+        pp_arg_list args
+  | Assign (lhs, expr, _, _) ->
       fprintf fmt "%a %s= %a"
         pp_lhs lhs
         (match lhs with

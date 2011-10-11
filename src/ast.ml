@@ -81,6 +81,11 @@ and 'a body_stmt = {
   body_ensure : 'a stmt list
 }
 
+and assign_kind =
+  | Asgn_single
+  | Asgn_svalue
+  | Asgn_multi
+
 and 'a stmt =
   | Alias of string * string * 'a
   | Undef of string list * 'a
@@ -111,8 +116,6 @@ and 'a expr =
 
   | Defined of 'a expr * 'a
 
-  | Svalue of 'a argument list * 'a
-
   | Ternary of 'a expr * 'a expr * 'a expr * 'a
   | If of 'a expr * 'a stmt list * 'a stmt list * 'a
   | Unless of 'a expr * 'a stmt list * 'a stmt list * 'a
@@ -130,7 +133,7 @@ and 'a expr =
   | Yield of 'a argument list * 'a
   | Super of 'a argument list option * 'a block option * 'a
 
-  | Assign of 'a lhs * 'a expr * 'a
+  | Assign of 'a lhs * 'a expr * assign_kind * 'a
 
   | Class of 'a cpath * 'a expr option * 'a body_stmt * 'a
   | Sclass of 'a expr * 'a body_stmt * 'a
@@ -177,7 +180,6 @@ let annot_of_expr = function
   | Literal (_, a)
   | Identifier (_, a)
   | Array (_, a)
-  | Svalue (_, a)
   | Hash (_, a)
   | Dot2 (_, _, a)
   | Dot3 (_, _, a)
@@ -200,7 +202,7 @@ let annot_of_expr = function
   | Return (_, a)
   | Yield (_, a)
   | Super (_, _, a)
-  | Assign (_, _, a)
+  | Assign (_, _, _, a)
   | Class (_, _, _, a)
   | Sclass (_, _, a)
   | Module (_, _, a)

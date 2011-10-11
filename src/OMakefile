@@ -3,7 +3,7 @@ LIBRARY = lang_ruby
 BYTE_ENABLED = true
 USE_OCAMLFIND = true
 
-FILES[] = logging rchar rid keyword ruby_lexing lexer_state ast lexer parser_helper parser parse pretty
+FILES[] = logging ruby_char ruby_id ruby_keyword ruby_lexing lexer_state ast lexer parser_helper parser parse pretty
 PACK = $(OCamlPackage $(LIBRARY), $(FILES))
 LIB = $(OCamlLibrary $(LIBRARY), $(rootname $(PACK)))
 OCAMLFLAGS += -annot -for-pack $(capitalize $(LIBRARY))

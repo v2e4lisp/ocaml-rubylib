@@ -1,6 +1,6 @@
 let is_const id =
   String.length id >= 1
-  && Rchar.is_const id.[0]
+  && Ruby_char.is_const id.[0]
 
 let is_class_var id =
   String.length id >= 2
