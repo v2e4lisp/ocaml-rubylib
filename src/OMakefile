@@ -1,6 +1,7 @@
 LIBRARY = lang_ruby
 
 BYTE_ENABLED = true
+NATIVE_ENABLED = true
 USE_OCAMLFIND = true
 
 FILES[] = logging ruby_char ruby_id ruby_keyword ruby_lexing lexer_state ast lexer parser_helper parser parse pretty
