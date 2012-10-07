@@ -142,7 +142,7 @@ and 'a expr =
   | Defs of 'a expr * string * 'a parameter list * 'a body_stmt * 'a
 
   | Begin of 'a body_stmt * 'a
-  | Block of 'a stmt list * 'a
+  | Seq of 'a stmt list * 'a
 
 let rec string_of_variable = function
   | Var_local (id)        -> id
@@ -175,7 +175,7 @@ let annot_of_stmt = function
     -> a
 
 let annot_of_expr = function
-  | Block (_, a)
+  | Seq (_, a)
   | Defined (_, a)
   | Literal (_, a)
   | Variable (_, a)

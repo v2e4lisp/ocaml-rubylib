@@ -362,7 +362,7 @@ and pp_expr fmt = function
         (pp_list pp_param) params
         pp_body_stmt body
 
-  | Block (body, _) ->
+  | Seq (body, _) ->
       fprintf fmt "(%a)" pp_body body
 
 and pp_expr_list fmt = pp_list pp_expr fmt

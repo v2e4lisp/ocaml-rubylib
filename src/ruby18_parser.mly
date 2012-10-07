@@ -641,7 +641,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | LPAREN compstmt RPAREN
                     { match $2 with
                       | [] -> Variable (Var_pseudo Pvar_nil, annot $1)
-                      | _  -> Block ($2, annot $1) }
+                      | _  -> Seq ($2, annot $1) }
                 | primary_value COLON2 CONSTANT
                     { Variable (Var_const (Cpath_rel ($1, fst $3)), annot (snd $3)) }
                 | COLON3 CONSTANT
@@ -988,7 +988,7 @@ xstring_contents: none
                     { state.lex_strterm <- $2;
                       Stack_state.lexpop state.cond_stack;
                       Stack_state.lexpop state.cmdarg_stack;
-                      Str_interpol (Block ($3, dummy_annot)), $1 }
+                      Str_interpol (Seq ($3, dummy_annot)), $1 }
 
 string_content_e1: { let ret = state.lex_strterm in
                        state.lex_strterm <- None;
