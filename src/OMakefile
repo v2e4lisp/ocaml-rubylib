@@ -1,25 +1,18 @@
-LIBRARY = lang_ruby
+LIBRARY = rubylib
 
 BYTE_ENABLED = true
 NATIVE_ENABLED = true
 USE_OCAMLFIND = true
 
-FILES[] = logging ruby_char ruby_id ruby_keyword ruby_lexing lexer_state ast lexer parser_helper parser parse pretty
+FILES[] = logging ruby_char ruby_id token ruby_keyword ruby_lexing lexer_state ast lexer parser_helper ruby18_parser parser18 pretty
 PACK = $(OCamlPackage $(LIBRARY), $(FILES))
 LIB = $(OCamlLibrary $(LIBRARY), $(rootname $(PACK)))
+OCAMLYACC = ../build-aux/ocamlyacc
 OCAMLFLAGS += -annot -for-pack $(capitalize $(LIBRARY))
 
 .PHONY: install uninstall clean
 
 .DEFAULT: $(LIB)
-
-parser.mli: ast.cmo parser_helper.cmo
-	$(OCAMLC) -i parser.ml > $@
-
-parser.ml: parser.mly
-	$(OCAMLYACC) -bgen_parser $(OCAMLYACCFLAGS) $<
-	mv gen_parser.ml $@
-	rm gen_parser.mli
 
 install: uninstall $(LIB)
 	$(OCAMLFIND) install $(LIBRARY) $(LIB) $(PACK) META
@@ -28,4 +21,4 @@ uninstall:
 	$(OCAMLFIND) remove $(LIBRARY)
 
 clean:
-	rm -f $(LIB) $(PACK) *.annot *.spot *.spit *.o *.opt *.cm* lexer.ml parser.output parser.ml parser.mli
+	rm -f $(LIB) $(PACK) *.annot *.spot *.spit *.o *.opt *.cm* lexer.ml ruby18_parser.output ruby18_parser.ml ruby18_parser.mli

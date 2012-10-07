@@ -1,8 +1,8 @@
 {
+  open Logging
+  open Token
   open Ruby_lexing
   open Lexer_state
-  open Parser
-  open Logging
 
   let start_pos lexbuf = lexbuf.lex_start_p
 

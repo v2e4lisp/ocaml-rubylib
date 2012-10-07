@@ -18,14 +18,14 @@ and regexp_flag =
   | Reg_none
   | Reg_once
 
-and 'a identifier =
-  | Id_local of string
-  | Id_dyn of string
-  | Id_inst of string
-  | Id_class of string
-  | Id_glob of string
-  | Id_const of 'a cpath
-  | Id_pseudo of pseudo_variable
+and 'a variable =
+  | Var_local of string
+  | Var_dynamic of string
+  | Var_instance of string
+  | Var_class of string
+  | Var_global of string
+  | Var_const of 'a cpath
+  | Var_pseudo of pseudo_variable
 
 and 'a cpath =
   | Cpath_name of string
@@ -33,13 +33,13 @@ and 'a cpath =
   | Cpath_glob of 'a cpath
 
 and pseudo_variable =
-  | Pid_nil
-  | Pid_true
-  | Pid_false
-  | Pid_self
+  | Pvar_nil
+  | Pvar_true
+  | Pvar_false
+  | Pvar_self
 
 and 'a parameter =
-  | Param_id of string
+  | Param_req of string
   | Param_opt of string * 'a expr
   | Param_rest of string
   | Param_star
@@ -52,8 +52,8 @@ and 'a argument =
   | Arg_hash of 'a expr list
 
 and 'a lhs =
-  | Lhs_id of 'a identifier
-  | Lhs_decl of 'a identifier
+  | Lhs_var of 'a variable
+  | Lhs_decl of 'a variable
   | Lhs_dstr of 'a lhs list
   | Lhs_rest of 'a lhs
   | Lhs_star
@@ -103,7 +103,7 @@ and 'a stmt =
 
 and 'a expr =
   | Literal of 'a literal * 'a
-  | Identifier of 'a identifier * 'a
+  | Variable of 'a variable * 'a
 
   | Array of 'a argument list * 'a
   | Hash of 'a expr list * 'a
@@ -144,17 +144,17 @@ and 'a expr =
   | Begin of 'a body_stmt * 'a
   | Block of 'a stmt list * 'a
 
-let rec string_of_identifier = function
-  | Id_local (id)       -> id
-  | Id_dyn (id)         -> id
-  | Id_inst (id)        -> Printf.sprintf "@%s" id
-  | Id_class (id)       -> Printf.sprintf "@@%s" id
-  | Id_glob (id)        -> Printf.sprintf "$%s" id
-  | Id_const (cpath)    -> name_of_cpath cpath
-  | Id_pseudo Pid_nil   -> "nil"
-  | Id_pseudo Pid_true  -> "true"
-  | Id_pseudo Pid_false -> "false"
-  | Id_pseudo Pid_self  -> "self"
+let rec string_of_variable = function
+  | Var_local (id)        -> id
+  | Var_dynamic (id)      -> id
+  | Var_instance (id)     -> Printf.sprintf "@%s" id
+  | Var_class (id)        -> Printf.sprintf "@@%s" id
+  | Var_global (id)       -> Printf.sprintf "$%s" id
+  | Var_const (cpath)     -> name_of_cpath cpath
+  | Var_pseudo Pvar_nil   -> "nil"
+  | Var_pseudo Pvar_true  -> "true"
+  | Var_pseudo Pvar_false -> "false"
+  | Var_pseudo Pvar_self  -> "self"
 
 and name_of_cpath = function
   | Cpath_name name     -> name
@@ -178,7 +178,7 @@ let annot_of_expr = function
   | Block (_, a)
   | Defined (_, a)
   | Literal (_, a)
-  | Identifier (_, a)
+  | Variable (_, a)
   | Array (_, a)
   | Hash (_, a)
   | Dot2 (_, _, a)

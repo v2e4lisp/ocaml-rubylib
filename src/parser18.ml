@@ -1,5 +1,5 @@
 module Make (A : Ast.Annot) = struct
-  module Parser = Parser.Make (A)
+  module Parser = Ruby18_parser.Make(A)
 
   let parse_from_lexbuf lexbuf =
     let state = Lexer_state.state in
@@ -23,4 +23,4 @@ module Make (A : Ast.Annot) = struct
         raise e
 end
 
-include Make (Ast.Pos)
+include Make(Ast.Pos)

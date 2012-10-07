@@ -1,4 +1,4 @@
-open Parser
+open Token
 open Lexer_state
 
 type t =

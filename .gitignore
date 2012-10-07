@@ -9,9 +9,9 @@
 *.a
 
 # example
-example/pp
+/examples/pp
 
 # src
-src/lexer.ml
-src/parser.ml
-src/parser.mli
+/src/lexer.ml
+/src/ruby18_parser.ml
+/src/ruby18_parser.mli

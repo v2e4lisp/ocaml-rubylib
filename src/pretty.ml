@@ -41,9 +41,9 @@ and pp_hash fmt = function
   | _ ->
       pp_fixme fmt
 
-and pp_id fmt = function
-  | Id_const cpath -> pp_cpath fmt cpath
-  | id -> pp_string fmt (string_of_identifier id)
+and pp_var fmt = function
+  | Var_const cpath -> pp_cpath fmt cpath
+  | var -> pp_string fmt (string_of_variable var)
 
 and pp_cpath fmt = function
   | Cpath_name (name) ->
@@ -54,7 +54,7 @@ and pp_cpath fmt = function
       fprintf fmt "::%a" pp_cpath cpath
 
 and pp_param fmt = function
-  | Param_id id ->
+  | Param_req id ->
       pp_string fmt id
   | Param_opt (id, e) ->
       fprintf fmt "%s = %a"
@@ -79,9 +79,9 @@ and pp_arg fmt = function
 and pp_arg_list fmt = pp_list pp_arg fmt
 
 and pp_lhs fmt = function
-  | Lhs_id id
-  | Lhs_decl id ->
-      pp_id fmt id
+  | Lhs_var var
+  | Lhs_decl var ->
+      pp_var fmt var
   | Lhs_dstr dstr ->
       fprintf fmt "(%a)" (pp_list pp_lhs) dstr
   | Lhs_rest rest ->
@@ -195,19 +195,8 @@ and pp_expr fmt = function
   | Literal (Lit_regexp (contents, _), _) ->
       pp_string_contents fmt contents ~delim:'/'
 
-  | Identifier (id, _) ->
-      begin match id with
-      | Id_local id         -> pp_string fmt id
-      | Id_dyn id           -> pp_string fmt id
-      | Id_inst id          -> fprintf fmt "@%s" id
-      | Id_class id         -> fprintf fmt "@@%s" id
-      | Id_glob id          -> fprintf fmt "$%s" id
-      | Id_const cpath      -> pp_cpath fmt cpath
-      | Id_pseudo Pid_nil   -> pp_string fmt "nil"
-      | Id_pseudo Pid_true  -> pp_string fmt "true"
-      | Id_pseudo Pid_false -> pp_string fmt "false"
-      | Id_pseudo Pid_self  -> pp_string fmt "self"
-      end
+  | Variable (var, _) ->
+    pp_string fmt (string_of_variable var)
 
   | Array (args, _) ->
       fprintf fmt "[@[%a]@]" pp_arg_list args

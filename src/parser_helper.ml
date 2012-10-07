@@ -49,28 +49,28 @@ module Make (A : Ast.Annot) = struct
     Yield (args, annot)
 
   let gettable ?(annot=dummy_annot) = function
-    | "nil"      -> Identifier (Id_pseudo Pid_nil, annot)
-    | "true"     -> Identifier (Id_pseudo Pid_true, annot)
-    | "false"    -> Identifier (Id_pseudo Pid_false, annot)
-    | "self"     -> Identifier (Id_pseudo Pid_self, annot)
+    | "nil"      -> Variable (Var_pseudo Pvar_nil, annot)
+    | "true"     -> Variable (Var_pseudo Pvar_true, annot)
+    | "false"    -> Variable (Var_pseudo Pvar_false, annot)
+    | "self"     -> Variable (Var_pseudo Pvar_self, annot)
     | "__FILE__" -> Literal (Lit_string [Str_contents "__FILE__"], annot)
     | "__LINE__" -> Literal (Lit_integer 42, annot)
     | id         ->
         let length = String.length id in
           if Ruby_id.is_class_var id then
-            Identifier (Id_class (String.sub id 2 (length - 2)), annot)
+            Variable (Var_class (String.sub id 2 (length - 2)), annot)
           else if Ruby_id.is_instance_var id then
-            Identifier (Id_inst (String.sub id 1 (length - 1)), annot)
+            Variable (Var_instance (String.sub id 1 (length - 1)), annot)
           else if Ruby_id.is_global_var id then
-            Identifier (Id_glob (String.sub id 1 (length - 1)), annot)
+            Variable (Var_global (String.sub id 1 (length - 1)), annot)
           else if Ruby_id.is_const id then
-            Identifier (Id_const (Cpath_name id), annot)
+            Variable (Var_const (Cpath_name id), annot)
           else
             match Env.find state.env id with
             | Some `Lvar ->
-                Identifier (Id_local id, annot)
+                Variable (Var_local id, annot)
             | Some `Dvar ->
-                Identifier (Id_dyn id, annot)
+                Variable (Var_dynamic id, annot)
             | None ->
                 new_vcall id ~annot
 
@@ -83,28 +83,29 @@ module Make (A : Ast.Annot) = struct
         if Env.find state.env id = None then
           Env.add state.env id `Lvar;
         if Ruby_id.is_class_var id then
+          let name = String.sub id 2 (String.length id - 2) in
           if state.in_def > 0 || state.in_single > 0
-          then Lhs_id (Id_class id)
-          else Lhs_decl (Id_class id)
+          then Lhs_var (Var_class name)
+          else Lhs_decl (Var_class name)
         else if Ruby_id.is_instance_var id then
-          Lhs_id (Id_inst id)
+          Lhs_var (Var_instance (String.sub id 1 (String.length id - 1)))
         else if Ruby_id.is_global_var id then
-          Lhs_id (Id_glob id)
+          Lhs_var (Var_global (String.sub id 1 (String.length id - 1)))
         else if Ruby_id.is_const id then
-          Lhs_decl (Id_const (Cpath_name id))
+          Lhs_decl (Var_const (Cpath_name id))
         else
           match Env.find state.env id with
           | Some `Lvar ->
-              Lhs_id (Id_local id)
+              Lhs_var (Var_local id)
           | Some `Dvar ->
               if Env.find_in_current state.env id = Some `Dvar then
-                Lhs_id (Id_local id)
+                Lhs_var (Var_local id)
               else begin
                 Env.use state.env id;
-                Lhs_id (Id_local id)
+                Lhs_var (Var_local id)
               end
           | None ->
-              Lhs_id (Id_local id)
+              Lhs_var (Var_local id)
 
   let get_match_node ?(annot=dummy_annot) lhs rhs =
     match lhs, rhs with
@@ -117,7 +118,7 @@ module Make (A : Ast.Annot) = struct
 
   let new_aref ?(annot=dummy_annot) ary args =
     match ary with
-    | Identifier (Id_pseudo Pid_self, _) ->
+    | Variable (Var_pseudo Pvar_self, _) ->
         new_fcall "[]" args ~annot
     | _ ->
         new_call ary "[]" args ~annot

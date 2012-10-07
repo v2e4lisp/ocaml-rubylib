@@ -2,8 +2,9 @@
   module Make (A : Ast.Annot) = struct
     module Parser_helper = Parser_helper.Make (A)
     open Logging
-    open Lexer_state
+    open Token
     open Ast
+    open Lexer_state
     open Parser_helper
 
     let annot = A.of_pos
@@ -37,7 +38,7 @@
 %token NL SPACE EOF
 
 %start program
-%type <A.t stmt list> program
+%type <A.t Ast.stmt list> program
 
 %nonassoc LOWEST
 %nonassoc LBRACE_ARG
@@ -249,11 +250,11 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | primary_value COLON2 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Lhs_id (Id_const (Cpath_rel ($1, fst $3))) }
+                      Lhs_var (Var_const (Cpath_rel ($1, fst $3))) }
                 | COLON3 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Lhs_id (Id_const (Cpath_glob (Cpath_name (fst $2)))) }
+                      Lhs_var (Var_const (Cpath_glob (Cpath_name (fst $2)))) }
 
              lhs: variable
                     { assignable (fst $1) ~annot:(annot (snd $1)) }
@@ -268,11 +269,11 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | primary_value COLON2 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Lhs_id (Id_const (Cpath_rel ($1, fst $3))) }
+                      Lhs_var (Var_const (Cpath_rel ($1, fst $3))) }
                 | COLON3 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Lhs_id (Id_const (Cpath_glob (Cpath_name (fst $2)))) }
+                      Lhs_var (Var_const (Cpath_glob (Cpath_name (fst $2)))) }
 
            cname: IDENTIFIER
                     { yyerror "class/module name must be CONSTANT" }
@@ -639,12 +640,12 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                       $2 }
                 | LPAREN compstmt RPAREN
                     { match $2 with
-                      | [] -> Identifier (Id_pseudo Pid_nil, annot $1)
+                      | [] -> Variable (Var_pseudo Pvar_nil, annot $1)
                       | _  -> Block ($2, annot $1) }
                 | primary_value COLON2 CONSTANT
-                    { Identifier (Id_const (Cpath_rel ($1, fst $3)), annot (snd $3)) }
+                    { Variable (Var_const (Cpath_rel ($1, fst $3)), annot (snd $3)) }
                 | COLON3 CONSTANT
-                    { Identifier (Id_const (Cpath_glob (Cpath_name (fst $2))), annot (snd $2)) }
+                    { Variable (Var_const (Cpath_glob (Cpath_name (fst $2))), annot (snd $2)) }
                 | primary_value LB aref_args RBRACK
                     { new_aref $1 $3 ~annot:(annot $2) }
                 | LBRACK aref_args RBRACK
@@ -884,7 +885,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { let body =
                         match $3 with
                         | Some lhs ->
-                            let asgn = Assign (lhs, (Identifier (Id_glob "!", dummy_annot)), Asgn_single, dummy_annot) in
+                            let asgn = Assign (lhs, (Variable (Var_global "!", dummy_annot)), Asgn_single, dummy_annot) in
                               (expr_stmt asgn) :: $5
                         | None ->
                             $5
@@ -1000,9 +1001,9 @@ string_content_e2: { let ret = state.lex_strterm in
                        Stack_state.push state.cmdarg_stack false;
                        ret }
 
-     string_dvar: GVAR { Identifier (Id_glob (fst $1), annot (snd $1)) }
-                | IVAR { Identifier (Id_inst (fst $1), annot (snd $1)) }
-                | CVAR { Identifier (Id_class (fst $1), annot (snd $1)) }
+     string_dvar: GVAR { Variable (Var_global (fst $1), annot (snd $1)) }
+                | IVAR { Variable (Var_instance (fst $1), annot (snd $1)) }
+                | CVAR { Variable (Var_class (fst $1), annot (snd $1)) }
 
           symbol: SYMBEG sym
                     { state.lex_state <- Expr_end;
@@ -1086,7 +1087,7 @@ string_content_e2: { let ret = state.lex_strterm in
                     { yyerror "formal argument cannot be a class variable" }
                 | IDENTIFIER
                     { Env.add state.env (fst $1) `Lvar;
-                      Param_id (fst $1) }
+                      Param_req (fst $1) }
 
            f_arg: f_norm_arg
                     { [$1] }
