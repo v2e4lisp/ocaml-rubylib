@@ -101,7 +101,6 @@ let hex = ['0'-'9' 'a'-'f' 'A'-'F']
 let ident0 = ['a'-'z' 'A'-'Z'] | '_' | [^ '\000'-'\177']
 let ident = (ident0 | ['0'-'9'])
 let space = [' ' '\t' '\012' '\r' '\011']
-let comment = '#' [^ '\n']* '\n'
 let newline = '\n'
 
 rule token state = parse
@@ -117,10 +116,9 @@ and token_case state = parse
       { state.space_seen <- true;
         token state lexbuf }
 
-  | comment as comment
-      { Buffer.add_string state.comment comment;
-        new_line lexbuf;
-        read_newline state lexbuf }
+  | '#' ([^ '\n']* as comment) '\n'
+      { new_line lexbuf;
+        read_comment state comment lexbuf }
   | newline
       { new_line lexbuf;
         read_newline state lexbuf }
@@ -579,6 +577,11 @@ and parse_quote state = parse
         | _ ->
           error "unknown type of %string" }
 
+and read_comment state comment = parse
+  | e { match state.lex_state with
+        | Expr_beg -> COMMENT (comment, start_pos lexbuf)
+        | _        -> read_newline state lexbuf }
+  
 and read_newline state = parse
   | e { match state.lex_state with
         | Expr_beg | Expr_fname

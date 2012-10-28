@@ -121,6 +121,7 @@ type token =
   | COLON of (Lexing.position)
   | COMMA of (Lexing.position)
   | SEMI of (Lexing.position)
+  | COMMENT of (string * Lexing.position)
   | NL
   | SPACE
   | EOF

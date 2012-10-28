@@ -1,14 +1,11 @@
 module type Annotation = sig
   type t
-  val annotate : Lexing.position -> Buffer.t -> t
+  val of_pos : Lexing.position -> t
 end
 
 module Position = struct
   type t = Lexing.position
-  let annotate pos comment =
-    (* Forget comment here *)
-    Buffer.clear comment;
-    pos
+  let of_pos pos = pos
 end
 
 module Generic = struct
@@ -112,6 +109,7 @@ module Generic = struct
     | Post_exec of 'a rb_stmt list * 'a
 
     | Expr of 'a rb_expr * 'a
+    | Comment of string * 'a
 
   and 'a rb_expr =
     | Literal of 'a rb_literal * 'a
@@ -208,6 +206,7 @@ let annot_of_stmt = function
   | Pre_exec (_, a)
   | Post_exec (_, a)
   | Expr (_, a)
+  | Comment (_, a)
     -> a
 
 let annot_of_expr = function

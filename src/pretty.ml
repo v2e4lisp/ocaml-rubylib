@@ -111,18 +111,18 @@ and pp_body_stmt fmt { body = body;
                        body_rescues = rescues;
                        body_else = elsbody;
                        body_ensure = ensbody } =
-  fprintf fmt "%a@]" pp_body body;
+  pp_body fmt body;
   List.iter
     (fun (types, resbody) ->
-       fprintf fmt "@\n@[<2>rescue";
+       fprintf fmt "@]@\n@[<2>rescue";
        if types <> [] then
          fprintf fmt " %a" pp_arg_list types;
-       fprintf fmt "@\n%a@]" pp_body resbody)
+       fprintf fmt "@\n%a" pp_body resbody)
     rescues;
   if elsbody <> [] then
-    fprintf fmt "@\n@[<2>else@\n%a@]@\n" pp_body elsbody;
+    fprintf fmt "@]@\n@[<2>else@\n%a" pp_body elsbody;
   if ensbody <> [] then
-    fprintf fmt "@\n@[<2>ensure@\n%a" pp_body ensbody;
+    fprintf fmt "@]@\n@[<2>ensure@\n%a" pp_body ensbody;
 
 and pp_stmt fmt = function
   | Alias (new_id, old_id, _) ->
@@ -161,6 +161,8 @@ and pp_stmt fmt = function
 
   | Expr (expr, _) ->
       pp_expr fmt expr
+  | Comment (comment, _) ->
+      fprintf fmt "#%s" comment
 
 and pp_body fmt = function
   | [] -> ()

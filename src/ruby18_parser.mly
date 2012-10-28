@@ -7,7 +7,7 @@
     open Lexer_state
     open Parser_helper
 
-    let annot pos = A.annotate pos state.comment
+    let annot pos = A.of_pos pos
 %}
 
 %token <Lexing.position>
@@ -35,6 +35,7 @@
        LCURLY RCURLY BACK_REF2 SYMBEG STRING_BEG XSTRING_BEG REGEXP_BEG
        WORDS_BEG QWORDS_BEG STRING_DBEG STRING_DVAR STRING_END
        EH COLON COMMA SEMI
+%token <string * Lexing.position> COMMENT
 %token NL SPACE EOF
 
 %start program
@@ -76,14 +77,14 @@
                         body_ensure = $4 } }
 
         compstmt: stmts opt_terms
-                    { $1 }
+                    { $1 @ $2 }
 
            stmts: none
                     { [] }
                 | stmt
                     { [$1] }
                 | stmts terms stmt
-                    { $1 @ [$3] }
+                    { $1 @ $2 @ [$3] }
                 | error stmt
                     { [$2] }
 
@@ -1173,17 +1174,22 @@ string_content_e2: { let ret = state.lex_strterm in
                 | op         { $1 }
     dot_or_colon: DOT    { $1 }
                 | COLON2 { $1 }
-       opt_terms: { () } | terms { () }
-          opt_nl: { () } | NL    { () }
+       opt_terms: { [] }
+                | terms   { $1 }
+          opt_nl: { () }
+                | COMMENT { () }
+                | NL      { () }
          trailer: { () }
-                | NL    { () }
-                | COMMA { () }
+                | COMMENT { () }
+                | NL      { () }
+                | COMMA   { () }
 
-            term: SEMI { () }
-                | NL   { () }
+            term: SEMI    { [] }
+                | COMMENT { [Comment (fst $1, annot (snd $1))] }
+                | NL      { [] }
 
-           terms: term       { () }
-                | terms SEMI { () }
+           terms: term       { $1 }
+                | term terms { $1 @ $2 }
 
             none: { () }
 
