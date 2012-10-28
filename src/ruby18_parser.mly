@@ -7,7 +7,7 @@
     open Lexer_state
     open Parser_helper
 
-    let annot = A.of_pos
+    let annot pos = A.annotate pos state.comment
 %}
 
 %token <Lexing.position>

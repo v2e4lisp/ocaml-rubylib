@@ -1,11 +1,14 @@
 module type Annotation = sig
   type t
-  val of_pos : Lexing.position -> t
+  val annotate : Lexing.position -> Buffer.t -> t
 end
 
 module Position = struct
   type t = Lexing.position
-  let of_pos pos = pos
+  let annotate pos comment =
+    (* Forget comment here *)
+    Buffer.clear comment;
+    pos
 end
 
 module Generic = struct

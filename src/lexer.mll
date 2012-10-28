@@ -117,7 +117,10 @@ and token_case state = parse
       { state.space_seen <- true;
         token state lexbuf }
 
-  | comment
+  | comment as comment
+      { Buffer.add_string state.comment comment;
+        new_line lexbuf;
+        read_newline state lexbuf }
   | newline
       { new_line lexbuf;
         read_newline state lexbuf }

@@ -3,7 +3,8 @@ module Make (A : Ast.Annotation) = struct
   open Lexer_state
   open Logging
 
-  let dummy_annot = A.of_pos dummy_pos
+  let dummy_comment = Buffer.create 0
+  let dummy_annot = A.annotate dummy_pos dummy_comment
 
   let yyerror = error
 

@@ -102,6 +102,7 @@ type t = {
   str_buf : Buffer.t;
   mutable str_nest : int;
   mutable str_end : bool;
+  comment : Buffer.t;
   mutable space_seen : bool;
   mutable ruby__end__seen : bool;
 
@@ -227,6 +228,7 @@ let create () = {
   str_buf           = Buffer.create 32;
   str_nest          = 0;
   str_end           = false;
+  comment           = Buffer.create 512;
   space_seen        = false;
   ruby__end__seen   = false;
 
@@ -244,9 +246,10 @@ let reset t =
   t.last_state <- Expr_beg;
   t.lex_strterm <- None;
   t.lex_heredoc <- None;
-  Buffer.clear t.str_buf;
+  Buffer.reset t.str_buf;
   t.str_nest <- 0;
   t.str_end <- false;
+  Buffer.reset t.comment;
   t.space_seen <- false;
   t.ruby__end__seen <- false;
   Env.clear t.env;
