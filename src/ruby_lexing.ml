@@ -8,8 +8,9 @@ let advance lexbuf offset =
 
 let peek_char lexbuf =
   if (lexbuf.lex_curr_pos >= lexbuf.lex_buffer_len
-      && (lexbuf.refill_buff lexbuf;
-          lexbuf.lex_eof_reached))
+      (* FIXME: refill for reading from channels *)
+      (* && (lexbuf.refill_buff lexbuf; lexbuf.lex_eof_reached)) *)
+  )
   then None
   else Some lexbuf.lex_buffer.[lexbuf.lex_curr_pos]
 

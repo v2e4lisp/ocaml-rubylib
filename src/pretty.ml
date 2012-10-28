@@ -32,14 +32,12 @@ let rec pp_string_contents fmt ?(delim='"') contents =
 
 and pp_hash fmt = function
   | [] -> ()
-  | k :: v :: xs ->
+  | (k, v) :: xs ->
       fprintf fmt "%a => %a"
         pp_expr k pp_expr v;
       if xs <> [] then
         pp_string fmt ", ";
       pp_hash fmt xs
-  | _ ->
-      pp_fixme fmt
 
 and pp_var fmt = function
   | Var_const cpath -> pp_cpath fmt cpath
@@ -48,9 +46,9 @@ and pp_var fmt = function
 and pp_cpath fmt = function
   | Cpath_name (name) ->
       pp_string fmt name
-  | Cpath_rel (parent, name) ->
+  | Cpath_relative (parent, name) ->
       fprintf fmt "%a::%s" pp_expr parent name
-  | Cpath_glob (cpath) ->
+  | Cpath_absolute (cpath) ->
       fprintf fmt "::%a" pp_cpath cpath
 
 and pp_param fmt = function
@@ -94,10 +92,6 @@ and pp_lhs fmt = function
       fprintf fmt "%a[%a]"
         pp_expr recv
         pp_arg_list args
-  | Lhs_op (lhs, _)
-  | Lhs_or lhs
-  | Lhs_and lhs ->
-      pp_lhs fmt lhs
 
 and pp_do_block fmt { blk_vars = vars; blk_body = body } =
   pp_string fmt " do";
@@ -319,15 +313,17 @@ and pp_expr fmt = function
       fprintf fmt "%a = %a"
         pp_lhs lhs
         pp_arg_list args
-  | Assign (lhs, expr, _, _) ->
-      fprintf fmt "%a %s= %a"
+  | Assign (lhs, rhs, _, _) ->
+      fprintf fmt "%a = %a"
         pp_lhs lhs
-        (match lhs with
-         | Lhs_op (_, op) -> op
-         | Lhs_or _       -> "||"
-         | Lhs_and _      -> "&&"
-         | _              -> "")
-        pp_expr expr
+        pp_expr rhs
+
+  | Op_assign (Lhs_op (lhs, op), rhs, _) ->
+      fprintf fmt "%a %s= %a" pp_lhs lhs op pp_expr rhs
+  | Op_assign (Lhs_or lhs, rhs, _) ->
+      fprintf fmt "%a &&= %a" pp_lhs lhs pp_expr rhs
+  | Op_assign (Lhs_and lhs, rhs, _) ->
+      fprintf fmt "%a ||= %a" pp_lhs lhs pp_expr rhs
 
   | Class (cpath, Some super, body, _) ->
       fprintf fmt "@[<2>class %a < %a@\n%a@]@\nend"

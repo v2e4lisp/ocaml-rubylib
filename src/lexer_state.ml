@@ -30,7 +30,7 @@ module Stack_state = struct
 end
 
 module Env = struct
-  module StrSet = Set.Make(String)
+  module StrSet = Set.Make (String)
 
   module Scope = struct
     type t = {

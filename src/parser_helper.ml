@@ -1,4 +1,4 @@
-module Make (A : Ast.Annot) = struct
+module Make (A : Ast.Annotation) = struct
   open Ast
   open Lexer_state
   open Logging
@@ -135,7 +135,7 @@ module Make (A : Ast.Annot) = struct
       | "||" -> Lhs_or lhs
       | "&&" -> Lhs_and lhs
       | _    -> Lhs_op (lhs, op)
-    in Assign (lhs, arg, Asgn_single, annot)
+    in Op_assign (lhs, arg, annot)
 
   let new_regexp ?(annot=dummy_annot) expr options =
     (* TODO *)

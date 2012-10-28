@@ -1,9 +1,9 @@
 %{
-  module Make (A : Ast.Annot) = struct
+  module Make (A : Ast.Annotation) = struct
     module Parser_helper = Parser_helper.Make (A)
     open Logging
     open Token
-    open Ast
+    open Ast.Generic
     open Lexer_state
     open Parser_helper
 
@@ -38,7 +38,7 @@
 %token NL SPACE EOF
 
 %start program
-%type <A.t Ast.stmt list> program
+%type <A.t Ast.Generic.rb_stmt list> program
 
 %nonassoc LOWEST
 %nonassoc LBRACE_ARG
@@ -250,11 +250,11 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | primary_value COLON2 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Lhs_var (Var_const (Cpath_rel ($1, fst $3))) }
+                      Lhs_var (Var_const (Cpath_relative ($1, fst $3))) }
                 | COLON3 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Lhs_var (Var_const (Cpath_glob (Cpath_name (fst $2)))) }
+                      Lhs_var (Var_const (Cpath_absolute (Cpath_name (fst $2)))) }
 
              lhs: variable
                     { assignable (fst $1) ~annot:(annot (snd $1)) }
@@ -269,11 +269,11 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | primary_value COLON2 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Lhs_var (Var_const (Cpath_rel ($1, fst $3))) }
+                      Lhs_var (Var_const (Cpath_relative ($1, fst $3))) }
                 | COLON3 CONSTANT
                     { if state.in_def > 0 || state.in_single > 0 then
                         yyerror "dynamic constant assignment";
-                      Lhs_var (Var_const (Cpath_glob (Cpath_name (fst $2)))) }
+                      Lhs_var (Var_const (Cpath_absolute (Cpath_name (fst $2)))) }
 
            cname: IDENTIFIER
                     { yyerror "class/module name must be CONSTANT" }
@@ -281,11 +281,11 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { $1 }
 
            cpath: COLON3 cname
-                    { Cpath_glob (Cpath_name (fst $2)) }
+                    { Cpath_absolute (Cpath_name (fst $2)) }
                 | cname
                     { Cpath_name (fst $1) }
                 | primary_value COLON2 cname
-                    { Cpath_rel ($1, fst $3) }
+                    { Cpath_relative ($1, fst $3) }
 
            fname: IDENTIFIER
                     { $1 }
@@ -491,7 +491,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                 | K_DEFINED opt_nl arg
                     { Defined ($3, annot $1) }
                 | arg EH arg COLON arg
-                    { Ternary ($1, $3, $5, annot_of_expr $1) }
+                    { Ternary ($1, $3, $5, Ast.annot_of_expr $1) }
                 | primary
                     { $1 }
 
@@ -643,9 +643,9 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                       | [] -> Variable (Var_pseudo Pvar_nil, annot $1)
                       | _  -> Seq ($2, annot $1) }
                 | primary_value COLON2 CONSTANT
-                    { Variable (Var_const (Cpath_rel ($1, fst $3)), annot (snd $3)) }
+                    { Variable (Var_const (Cpath_relative ($1, fst $3)), annot (snd $3)) }
                 | COLON3 CONSTANT
-                    { Variable (Var_const (Cpath_glob (Cpath_name (fst $2))), annot (snd $2)) }
+                    { Variable (Var_const (Cpath_absolute (Cpath_name (fst $2))), annot (snd $2)) }
                 | primary_value LB aref_args RBRACK
                     { new_aref $1 $3 ~annot:(annot $2) }
                 | LBRACK aref_args RBRACK
@@ -670,6 +670,8 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
                     { match $1 with
                       | Call (recv, id, args, _, annot) ->
                           Call (recv, id, args, Some $2, annot)
+                      | Super (args, _, annot) ->
+                          Super (args, Some $2, annot)
                       | _ -> failwith "invalid method_call" }
                 | K_IF expr_value then_ compstmt if_tail K_END
                     { If ($2, $4, $5, annot $1) }
@@ -1144,11 +1146,12 @@ string_content_e2: { let ret = state.lex_strterm in
                 | assocs trailer
                     { $1 }
                 | args trailer
-                    { List.map
-                        (function
-                         | Arg_value e -> e
-                         | _ -> failwith "invalid assoc")
-                        $1 }
+                    { let rec work = function
+                        | [] -> []
+                        | Arg_value k :: Arg_value v :: xs ->
+                          (k, v) :: work xs
+                        | _ -> failwith "invalid assoc"
+                      in work $1 }
 
           assocs: assoc
                     { $1 }
@@ -1156,7 +1159,7 @@ string_content_e2: { let ret = state.lex_strterm in
                     { $1 @ $3 }
 
            assoc: arg_value ASSOC arg_value
-                    { [$1; $3] }
+                    { [$1, $3] }
 
        operation: IDENTIFIER { $1 }
                 | CONSTANT   { $1 }

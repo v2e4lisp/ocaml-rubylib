@@ -15,6 +15,6 @@ sed -i -e '0,/^$/d' "$prefix.ml" "$prefix.mli"
 # Fix mli for parameterizing
 sed -i \
     -e '1i open Token' \
-    -e '1i module Make : functor (A : Ast.Annot) -> sig' \
+    -e '1i module Make : functor (A : Ast.Annotation) -> sig' \
     -e '$a end' \
     "$prefix.mli"

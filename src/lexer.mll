@@ -529,8 +529,12 @@ and parse_number state = parse
   | '0' ['o' 'O' '_'] ['0'-'7' '_']+
   | ['0'-'9'] ['0'-'9' '_']*
       { state.lex_state <- Expr_end;
-        (* TODO bigint *)
-        INTEGER (int_of_string (lexeme lexbuf), start_pos lexbuf) }
+        (* FIXME: bigint *)
+        let int =
+          try int_of_string (lexeme lexbuf)
+          with _ -> (* FIXME: parser *) 0
+        in
+          INTEGER (int, start_pos lexbuf) }
   | ['0'-'9'] ['0'-'9' '_']* '.' ['0'-'9' '_']+ (['e' 'E'] ['-' '+']? ['0'-'9' '_']+)?
       { state.lex_state <- Expr_end;
         FLOAT (float_of_string (lexeme lexbuf), start_pos lexbuf) }
@@ -548,29 +552,29 @@ and parse_quote state = parse
           | _   -> '\000', term
         in match c with
         | 'Q' ->
-            state.lex_strterm <- Some (str_dquote, term, paren);
-            STRING_BEG (start_pos lexbuf)
+          state.lex_strterm <- Some (str_dquote, term, paren);
+          STRING_BEG (start_pos lexbuf)
         | 'q' ->
-            state.lex_strterm <- Some (str_squote, term, paren);
-            STRING_BEG (start_pos lexbuf)
+          state.lex_strterm <- Some (str_squote, term, paren);
+          STRING_BEG (start_pos lexbuf)
         | 'W' ->
-            state.lex_strterm <- Some (str_dword, term, paren);
-            WORDS_BEG (start_pos lexbuf)
+          state.lex_strterm <- Some (str_dword, term, paren);
+          WORDS_BEG (start_pos lexbuf)
         | 'w' ->
-            ignore (skip_spaces lexbuf);
-            state.lex_strterm <- Some (str_sword, term, paren);
-            QWORDS_BEG (start_pos lexbuf)
+          ignore (skip_spaces lexbuf);
+          state.lex_strterm <- Some (str_sword, term, paren);
+          QWORDS_BEG (start_pos lexbuf)
         | 'x' ->
-            state.lex_strterm <- Some (str_xquote, term, paren);
-            XSTRING_BEG (start_pos lexbuf)
+          state.lex_strterm <- Some (str_xquote, term, paren);
+          XSTRING_BEG (start_pos lexbuf)
         | 'r' ->
-            state.lex_strterm <- Some (str_regexp, term, paren);
-            REGEXP_BEG (start_pos lexbuf)
+          state.lex_strterm <- Some (str_regexp, term, paren);
+          REGEXP_BEG (start_pos lexbuf)
         | 's' ->
-            state.lex_strterm <- Some (str_ssym, term, paren);
-            SYMBEG (start_pos lexbuf)
+          state.lex_strterm <- Some (str_ssym, term, paren);
+          SYMBEG (start_pos lexbuf)
         | _ ->
-            error "unknown type of %string" }
+          error "unknown type of %string" }
 
 and read_newline state = parse
   | e { match state.lex_state with
