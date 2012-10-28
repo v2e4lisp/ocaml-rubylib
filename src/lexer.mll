@@ -536,7 +536,7 @@ and parse_number state = parse
           with _ -> (* FIXME: parser *) 0
         in
           INTEGER (int, start_pos lexbuf) }
-  | ['0'-'9'] ['0'-'9' '_']* '.' ['0'-'9' '_']+ (['e' 'E'] ['-' '+']? ['0'-'9' '_']+)?
+  | ['0'-'9'] ['0'-'9' '_']* '.' ['0'-'9']+ (['e' 'E'] ['-' '+']? ['0'-'9' '_']+)?
       { state.lex_state <- Expr_end;
         FLOAT (float_of_string (lexeme lexbuf), start_pos lexbuf) }
 
