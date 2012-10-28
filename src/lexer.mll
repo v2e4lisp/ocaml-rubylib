@@ -20,8 +20,8 @@
           then id ^ "?"
           else (advance lexbuf ~-1; id)
       | Some _ -> advance lexbuf ~-1; id
-      | None -> id
-    and real_id = ref id
+      | None -> id in
+    let real_id = ref id
     and result = ref EOF
     in
       (match id.[0] with
