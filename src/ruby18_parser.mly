@@ -180,7 +180,7 @@
  cmd_brace_block: LBRACE_ARG
                     cmd_brace_block_e1
                     opt_block_var
-                    compstmt RCURLY
+                    compstmt RCURLY_error
                     { let blk = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env ;
                         blk }
@@ -815,7 +815,7 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
         do_block: K_DO_BLOCK
                     do_block_e1
                     opt_block_var
-                    compstmt K_END
+                    compstmt K_END_error
                     { let blk = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env;
                         blk }
@@ -855,14 +855,14 @@ cmd_brace_block_e1: { Env.extend ~dyn:true state.env;
      brace_block: LCURLY
                     brace_block_e1
                     opt_block_var
-                    compstmt RCURLY
+                    compstmt RCURLY_error
                     { let blk = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env;
                         blk }
                 | K_DO
                     brace_block_e1
                     opt_block_var
-                    compstmt K_END
+                    compstmt K_END_error
                     { let blk = { blk_vars = $3; blk_body = $4 } in
                         Env.unextend state.env;
                         blk }
@@ -1195,4 +1195,6 @@ string_content_e2: { let ret = state.lex_strterm in
 
  none_block_pass: { () }
 
+    RCURLY_error: RCURLY { () } | error { () }
+     K_END_error: K_END { () } | error { () }
 %%end
